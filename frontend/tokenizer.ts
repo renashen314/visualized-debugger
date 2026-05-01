@@ -86,6 +86,14 @@ type Token =
   | SymbolToken
   | EOFToken;
 
+type TokenType =
+  | KeywordType
+  | "identifier"
+  | "string"
+  | "number"
+  | SymbolType
+  | "EOF";
+
 class Incrementer {
   private readonly position: Position = { line: 1, col: 1, i: 0 };
   inc() {
@@ -340,4 +348,33 @@ function isTwoCharSymbol(s: string): s is SymbolType {
   return twoCharSymbols.has(s);
 }
 
-export { Tokenizer };
+class TokenManager {
+  private readonly tokens: Token[];
+  private i: number = 0;
+
+  constructor(tokens: Token[]) {
+    this.tokens = tokens;
+  }
+
+  peek(): Token {
+    return this.tokens[this.i];
+  }
+
+  consume(types?: TokenType | TokenType[]) {
+    if (typeof types === "string") {
+      types = [types];
+    }
+
+    if (!(types || []).includes(this.tokens[this.i].type)) {
+      throw new Error(
+        `Expected token type ${(types || []).join(",")}, but got ${this.tokens[this.i].type} at line ${this.tokens[this.i].loc.start.line}, col ${this.tokens[this.i].loc.start.col}`,
+      );
+    }
+
+    const token = this.tokens;
+    this.i++;
+    return token;
+  }
+}
+
+export { Tokenizer, TokenManager };
