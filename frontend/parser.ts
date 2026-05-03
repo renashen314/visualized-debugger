@@ -1,9 +1,11 @@
 import { type Token, TokenManager, type IdentifierToken } from "./tokenizer.ts";
 import type {
+  AssignmentStatement,
   Atom,
   Block,
   ElseIf,
   Expression,
+  ExpressionStatement,
   FunctionDeclaration,
   Identifier,
   IfStatement,
@@ -51,7 +53,8 @@ function isStatementLookahead(token: Token): boolean {
     isWhileLoopLookahead(token) ||
     isIfStatementLookahead(token) ||
     isFuntionDeclarationLookahead(token) ||
-    isReturnStatementLookahead(token)
+    isReturnStatementLookahead(token) ||
+    isExpressionLookahead(token)
   );
 }
 
@@ -93,11 +96,36 @@ export class Parser {
       return this.functionDeclaration();
     } else if (isReturnStatementLookahead(token)) {
       return this.returnStatement();
+    } else if (isExpressionLookahead(token)) {
+      return this.assignmentOrExpressionStatement();
     } else {
       throw new Error(
         `Expected statement, but got ${token.type} at line ${token.loc.start.line}, col ${token.loc.start.col}`,
       );
     }
+  }
+
+  assignmentOrExpressionStatement(): ExpressionStatement | AssignmentStatement {
+    const left = this.expression();
+    if (this.tokens.peek().type === "=") {
+      this.tokens.consume("=");
+      const right = this.expression();
+      const { end } = this.tokens.consume(";").loc;
+      return {
+        id: uuid(),
+        type: "AssignmentStatement",
+        left,
+        right,
+        loc: { start: left.loc.start, end },
+      };
+    }
+    const { end } = this.tokens.consume(";").loc;
+    return {
+      id: uuid(),
+      type: "ExpressionStatement",
+      expression: left,
+      loc: { start: left.loc.start, end },
+    };
   }
 
   private ifStatement(): IfStatement {
@@ -198,7 +226,7 @@ export class Parser {
       id: uuid(),
       type: "FunctionDeclaration",
       name,
-      param: params,
+      params: params,
       body,
       loc: { start, end },
     };
@@ -249,6 +277,37 @@ export class Parser {
         id: uuid(),
         type: "BooleanLiteral",
         value: false,
+        loc: token.loc,
+      };
+    } else if (token.type === "number") {
+      this.tokens.consume("number");
+      return {
+        id: uuid(),
+        type: "NumberLiteral",
+        value: Number(token.val),
+        loc: token.loc,
+      };
+    } else if (token.type === "string") {
+      this.tokens.consume("string");
+      return {
+        id: uuid(),
+        type: "StringLiteral",
+        value: token.val,
+        loc: token.loc,
+      };
+    } else if (token.type === "null") {
+      this.tokens.consume("null");
+      return {
+        id: uuid(),
+        type: "NullLiteral",
+        loc: token.loc,
+      };
+    } else if (token.type === "identifier") {
+      this.tokens.consume("identifier");
+      return {
+        id: uuid(),
+        type: "Identifier",
+        name: token.val,
         loc: token.loc,
       };
     } else {

@@ -19,17 +19,7 @@ import { Tokenizer, TokenManager } from "./tokenizer.ts";
 //   }
 // }`;
 
-const program = `fn add(x, y) {
-if (true) {}
-  return true;
-  if (false) {}
-}
-fn subtract(x, y) {
-  return false;
-}
-if (true) {
-
-}
+const program = `false;
 `;
 
 const tokenizer = new Tokenizer(program);

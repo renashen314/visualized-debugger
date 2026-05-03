@@ -14,7 +14,9 @@ export type Statement =
   | IfStatement
   | WhileLoop
   | FunctionDeclaration
-  | ReturnStatement;
+  | ReturnStatement
+  | ExpressionStatement
+  | AssignmentStatement;
 
 export interface IfStatement extends BaseNode {
   type: "IfStatement";
@@ -57,7 +59,45 @@ export interface Identifier extends BaseNode {
   type: "Identifier";
   name: string;
 }
-export type Atom = BooleanLiteral | Identifier;
+
+export interface StringLiteral extends BaseNode {
+  type: "StringLiteral";
+  value: string;
+}
+
+export interface NumberLiteral extends BaseNode {
+  type: "NumberLiteral";
+  value: number;
+}
+
+export interface NullLiteral extends BaseNode {
+  type: "NullLiteral";
+}
+
+export type Primitive =
+  | BooleanLiteral
+  | Identifier
+  | StringLiteral
+  | NumberLiteral
+  | NullLiteral;
+
+export type Atom = Primitive;
+
 export type Expression = Atom;
 
-type ASTNode = Statement | Expression;
+export interface AssignmentStatement extends BaseNode {
+  type: "AssignmentStatement";
+  left: Expression;
+  right: Expression;
+}
+
+export interface ExpressionStatement extends BaseNode {
+  type: "ExpressionStatement";
+  expression: Expression;
+}
+
+type ASTNode =
+  | Statement
+  | Expression
+  | AssignmentStatement
+  | ExpressionStatement;
