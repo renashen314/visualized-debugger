@@ -5,22 +5,35 @@ import { Tokenizer, TokenManager } from "./tokenizer.ts";
 //
 //   }
 // }`;
-const program = `while (true) { 
-while(true){
-  if (true) {
-    if (false) {}
-    else if (true) {
-    while(true){}
-    } else if (false) {}
-    else {}
-  }
-  }
-  if(true) {
-  }
-}`;
+// const program = `while (true) {
+// while(true){
+//   if (true) {
+//     if (false) {}
+//     else if (true) {
+//     while(true){}
+//     } else if (false) {}
+//     else {}
+//   }
+//   }
+//   if(true) {
+//   }
+// }`;
+
+const program = `fn add(x, y) {
+if (true) {}
+  return true;
+  if (false) {}
+}
+fn subtract(x, y) {
+  return false;
+}
+if (true) {
+
+}
+`;
 
 const tokenizer = new Tokenizer(program);
 const tokens = new TokenManager(tokenizer.tokenize());
 const parser = new Parser(tokens);
 
-console.log(JSON.stringify(parser.parse(), null, 2));
+console.log(JSON.stringify(parser.parse()));

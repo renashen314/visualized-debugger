@@ -380,4 +380,4 @@ class TokenManager {
   }
 }
 
-export { Tokenizer, TokenManager };
+export { Tokenizer, TokenManager, type IdentifierToken };

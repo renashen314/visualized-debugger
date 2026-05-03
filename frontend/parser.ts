@@ -1,14 +1,42 @@
-import { type Token, TokenManager } from "./tokenizer.ts";
+import { type Token, TokenManager, type IdentifierToken } from "./tokenizer.ts";
 import type {
   Atom,
   Block,
   ElseIf,
   Expression,
+  FunctionDeclaration,
+  Identifier,
   IfStatement,
+  ReturnStatement,
   Statement,
   WhileLoop,
 } from "./ast";
 import { uuid } from "../utils.ts";
+
+function isPrimitiveLookahead(token: Token): boolean {
+  return (
+    token.type === "true" ||
+    token.type === "false" ||
+    token.type === "number" ||
+    token.type === "string" ||
+    token.type === "null" ||
+    token.type === "identifier"
+  );
+}
+
+function isAtomLookahead(token: Token): boolean {
+  return isPrimitiveLookahead(token);
+}
+function isExpressionLookahead(token: Token): boolean {
+  return isAtomLookahead(token);
+}
+
+function isReturnStatementLookahead(token: Token): boolean {
+  return token.type === "return";
+}
+function isFuntionDeclarationLookahead(token: Token): boolean {
+  return token.type === "fn";
+}
 
 function isWhileLoopLookahead(token: Token): boolean {
   return token.type === "while";
@@ -19,7 +47,12 @@ function isIfStatementLookahead(token: Token): boolean {
 }
 
 function isStatementLookahead(token: Token): boolean {
-  return isWhileLoopLookahead(token) || isIfStatementLookahead(token);
+  return (
+    isWhileLoopLookahead(token) ||
+    isIfStatementLookahead(token) ||
+    isFuntionDeclarationLookahead(token) ||
+    isReturnStatementLookahead(token)
+  );
 }
 
 export class Parser {
@@ -56,6 +89,10 @@ export class Parser {
       return this.ifStatement();
     } else if (isWhileLoopLookahead(token)) {
       return this.whileLoop();
+    } else if (isFuntionDeclarationLookahead(token)) {
+      return this.functionDeclaration();
+    } else if (isReturnStatementLookahead(token)) {
+      return this.returnStatement();
     } else {
       throw new Error(
         `Expected statement, but got ${token.type} at line ${token.loc.start.line}, col ${token.loc.start.col}`,
@@ -128,6 +165,68 @@ export class Parser {
       body,
       loc: { start, end },
     };
+  }
+
+  private returnStatement(): ReturnStatement {
+    const { start } = this.tokens.consume("return").loc;
+    let expression: Expression | undefined;
+    if (isExpressionLookahead(this.tokens.peek())) {
+      expression = this.expression();
+    }
+    const { end } = this.tokens.consume(";").loc;
+
+    return {
+      id: uuid(),
+      type: "ReturnStatement",
+      expression,
+      loc: { start, end },
+    };
+  }
+
+  private functionDeclaration(): FunctionDeclaration {
+    const { start } = this.tokens.consume("fn").loc;
+    const name = (this.tokens.consume("identifier") as IdentifierToken).val;
+    this.tokens.consume("(");
+    let params: Identifier[] =
+      this.tokens.peek().type === "identifier" ? this.params() : [];
+    this.tokens.consume(")");
+    this.tokens.consume("{");
+    const body = this.block();
+    const { end } = this.tokens.consume("}").loc;
+
+    return {
+      id: uuid(),
+      type: "FunctionDeclaration",
+      name,
+      param: params,
+      body,
+      loc: { start, end },
+    };
+  }
+
+  private params(): Identifier[] {
+    const firstParam = this.tokens.consume("identifier") as IdentifierToken;
+    const params: Identifier[] = [
+      {
+        id: uuid(),
+        type: "Identifier",
+        name: firstParam.val,
+        loc: firstParam.loc,
+      },
+    ];
+    while (this.tokens.peek().type === ",") {
+      this.tokens.consume(",");
+      if (this.tokens.peek().type === "identifier") {
+        const next = this.tokens.consume("identifier") as IdentifierToken;
+        params.push({
+          id: uuid(),
+          type: "Identifier",
+          name: next.val,
+          loc: next.loc,
+        });
+      }
+    }
+    return params;
   }
 
   private expression(): Expression {
