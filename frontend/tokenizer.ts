@@ -4,7 +4,7 @@ interface Position {
   i: number;
 }
 
-interface TokenLocation {
+export interface TokenLocation {
   start: Position;
   end: Position;
 }
@@ -78,14 +78,6 @@ interface EOFToken extends BaseToken {
   type: "EOF";
 }
 
-type Token =
-  | KeywordToken
-  | IdentifierToken
-  | StringToken
-  | NumberTokens
-  | SymbolToken
-  | EOFToken;
-
 type TokenType =
   | KeywordType
   | "identifier"
@@ -94,8 +86,17 @@ type TokenType =
   | SymbolType
   | "EOF";
 
+export type Token =
+  | KeywordToken
+  | IdentifierToken
+  | StringToken
+  | NumberTokens
+  | SymbolToken
+  | EOFToken;
+
 class Incrementer {
   private readonly position: Position = { line: 1, col: 1, i: 0 };
+
   inc() {
     this.position.i++;
     this.position.col++;
@@ -133,10 +134,12 @@ class Tokenizer {
         tokens.push(this.identifierOrKeyword());
         continue;
       }
+
       if (isDigit(c)) {
         tokens.push(this.num());
         continue;
       }
+
       if (c === '"') {
         tokens.push(this.str());
         continue;
@@ -371,7 +374,7 @@ class TokenManager {
       );
     }
 
-    const token = this.tokens;
+    const token = this.tokens[this.i];
     this.i++;
     return token;
   }

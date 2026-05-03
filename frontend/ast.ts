@@ -1,24 +1,43 @@
-interface Block {
-  statement: Statement[];
+import { TokenLocation } from "./tokenizer";
+
+interface BaseNode {
+  id: string;
+  loc: TokenLocation;
 }
 
-type Statement = IfStatement | WhileLoop;
+export interface Block extends BaseNode {
+  type: "Block";
+  statements: Statement[];
+}
 
-interface IfStatement {
+export type Statement = IfStatement | WhileLoop;
+
+export interface IfStatement extends BaseNode {
   type: "IfStatement";
+  condition: Expression;
+  elseIfs?: ElseIf[];
+  else?: Block;
+  body: Block;
+}
+
+export interface ElseIf extends BaseNode {
+  type: "ElseIf";
   condition: Expression;
   body: Block;
 }
 
-interface WhileLoop {
+export interface WhileLoop extends BaseNode {
   type: "WhileLoop";
   condition: Expression;
   body: Block;
 }
 
-interface BooleanLiteral {
+export interface BooleanLiteral extends BaseNode {
   type: "BooleanLiteral";
   value: boolean;
 }
 
-type Expression = BooleanLiteral;
+export type Atom = BooleanLiteral;
+export type Expression = Atom;
+
+type ASTNode = Statement | Expression;
