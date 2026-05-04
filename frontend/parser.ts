@@ -1,14 +1,20 @@
 import { type Token, TokenManager, type IdentifierToken } from "./tokenizer.ts";
 import type {
+  ArrayLiteral,
   AssignmentStatement,
   Atom,
   Block,
   ElseIf,
   Expression,
+  ExpressionKey,
   ExpressionStatement,
   FunctionDeclaration,
   Identifier,
+  IdentifierKey,
   IfStatement,
+  KVPair,
+  ObjectLiteral,
+  Primitive,
   ReturnStatement,
   Statement,
   WhileLoop,
@@ -26,8 +32,17 @@ function isPrimitiveLookahead(token: Token): boolean {
   );
 }
 
+function isKVPairLookahead(token: Token): boolean {
+  return isPrimitiveLookahead(token) || token.type === "[";
+}
+
 function isAtomLookahead(token: Token): boolean {
-  return isPrimitiveLookahead(token);
+  return (
+    isPrimitiveLookahead(token) ||
+    token.type === "(" ||
+    token.type === "[" ||
+    token.type === "{"
+  );
 }
 function isExpressionLookahead(token: Token): boolean {
   return isAtomLookahead(token);
@@ -105,7 +120,9 @@ export class Parser {
     }
   }
 
-  assignmentOrExpressionStatement(): ExpressionStatement | AssignmentStatement {
+  private assignmentOrExpressionStatement():
+    | ExpressionStatement
+    | AssignmentStatement {
     const left = this.expression();
     if (this.tokens.peek().type === "=") {
       this.tokens.consume("=");
@@ -211,6 +228,100 @@ export class Parser {
     };
   }
 
+  private arrayLiteral(): ArrayLiteral {
+    const { start } = this.tokens.consume("[").loc;
+    const elements = isExpressionLookahead(this.tokens.peek())
+      ? this.exprList()
+      : [];
+    const { end } = this.tokens.consume("]").loc;
+
+    return {
+      id: uuid(),
+      type: "ArrayLiteral",
+      elements,
+      loc: { start, end },
+    };
+  }
+
+  private exprList(): Expression[] {
+    const first = this.expression();
+    const expressions: Expression[] = [first];
+    while (this.tokens.peek().type === ",") {
+      this.tokens.consume(",");
+      if (isExpressionLookahead(this.tokens.peek())) {
+        expressions.push(this.expression());
+      }
+    }
+    return expressions;
+  }
+
+  private objectLiteral(): ObjectLiteral {
+    const { start } = this.tokens.consume("{").loc;
+    const pairs = isKVPairLookahead(this.tokens.peek()) ? this.kvpairs() : [];
+    const { end } = this.tokens.consume("}").loc;
+
+    return {
+      id: uuid(),
+      type: "ObjectLiteral",
+      pairs,
+      loc: { start, end },
+    };
+  }
+
+  private kvpairs(): KVPair[] {
+    const first = this.kvpair();
+    const pairs: KVPair[] = [first];
+    while (this.tokens.peek().type === ",") {
+      this.tokens.consume(",");
+      if (isKVPairLookahead(this.tokens.peek())) {
+        pairs.push(this.kvpair());
+      }
+    }
+    return pairs;
+  }
+
+  private kvpair(): KVPair {
+    let key: ExpressionKey | IdentifierKey;
+    if (this.tokens.peek().type === "[") {
+      this.tokens.consume("[");
+      const expression = this.expression();
+      key = {
+        type: "ExpressionKey",
+        expression,
+      };
+      this.tokens.consume("]");
+    } else {
+      const prim = this.primitive();
+      if (prim.type === "Identifier") {
+        key = {
+          type: "IdentifierKey",
+          identifier: prim,
+        };
+      } else {
+        key = {
+          type: "ExpressionKey",
+          expression: prim,
+        };
+      }
+    }
+    this.tokens.consume(":");
+    const value = this.expression();
+    return [key, value];
+  }
+
+  private parenthesizedExpression(): Expression {
+    const { start } = this.tokens.consume("(").loc;
+    const expression = this.expression();
+    const { end } = this.tokens.consume(")").loc;
+
+    return {
+      id: uuid(),
+      type: "ParenthesizedExpression",
+      expression,
+      loc: { start, end },
+    };
+  }
+
   private functionDeclaration(): FunctionDeclaration {
     const { start } = this.tokens.consume("fn").loc;
     const name = (this.tokens.consume("identifier") as IdentifierToken).val;
@@ -261,7 +372,7 @@ export class Parser {
     return this.atom();
   }
 
-  private atom(): Atom {
+  private primitive(): Primitive {
     const token = this.tokens.peek();
     if (token.type === "true") {
       this.tokens.consume("true");
@@ -310,6 +421,21 @@ export class Parser {
         name: token.val,
         loc: token.loc,
       };
+    }
+    throw new Error(
+      `Unexpected token: ${token.type} at line ${token.loc.start.line}, col ${token.loc.start.col}`,
+    );
+  }
+  private atom(): Atom {
+    const token = this.tokens.peek();
+    if (isPrimitiveLookahead(token)) {
+      return this.primitive();
+    } else if (token.type === "(") {
+      return this.parenthesizedExpression();
+    } else if (token.type === "[") {
+      return this.arrayLiteral();
+    } else if (token.type === "{") {
+      return this.objectLiteral();
     } else {
       throw new Error(
         `Unexpected token: ${token.type} at line ${token.loc.start.line}, col ${token.loc.start.col}`,

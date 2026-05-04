@@ -1,25 +1,8 @@
 import { Parser } from "./parser.ts";
 import { Tokenizer, TokenManager } from "./tokenizer.ts";
-// const program = `while (true) {
-//   if (true) {
-//
-//   }
-// }`;
-// const program = `while (true) {
-// while(true){
-//   if (true) {
-//     if (false) {}
-//     else if (true) {
-//     while(true){}
-//     } else if (false) {}
-//     else {}
-//   }
-//   }
-//   if(true) {
-//   }
-// }`;
 
-const program = `false;
+const program = `
+a = [1,2,3];
 `;
 
 const tokenizer = new Tokenizer(program);

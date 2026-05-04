@@ -81,7 +81,37 @@ export type Primitive =
   | NumberLiteral
   | NullLiteral;
 
-export type Atom = Primitive;
+export interface ParenthesizedExpression extends BaseNode {
+  type: "ParenthesizedExpression";
+  expression: Expression;
+}
+
+export interface ArrayLiteral extends BaseNode {
+  type: "ArrayLiteral";
+  elements: Expression[];
+}
+
+export interface ExpressionKey {
+  type: "ExpressionKey";
+  expression: Expression;
+}
+
+export interface IdentifierKey {
+  type: "IdentifierKey";
+  identifier: Identifier;
+}
+
+type Key = ExpressionKey | IdentifierKey;
+
+export type KVPair = [Key, Expression];
+export interface ObjectLiteral extends BaseNode {
+  type: "ObjectLiteral";
+  pairs: KVPair[];
+}
+
+type RefType = ArrayLiteral | ObjectLiteral;
+
+export type Atom = Primitive | ParenthesizedExpression | RefType;
 
 export type Expression = Atom;
 
