@@ -3,6 +3,7 @@ import type {
   ArrayLiteral,
   AssignmentStatement,
   Atom,
+  BinaryExpression,
   Block,
   ElseIf,
   Expression,
@@ -14,6 +15,7 @@ import type {
   IfStatement,
   KVPair,
   ObjectLiteral,
+  ParenthesizedExpression,
   Primitive,
   ReturnStatement,
   Statement,
@@ -51,7 +53,7 @@ function isExpressionLookahead(token: Token): boolean {
 function isReturnStatementLookahead(token: Token): boolean {
   return token.type === "return";
 }
-function isFuntionDeclarationLookahead(token: Token): boolean {
+function isFunctionDeclarationLookahead(token: Token): boolean {
   return token.type === "fn";
 }
 
@@ -67,7 +69,7 @@ function isStatementLookahead(token: Token): boolean {
   return (
     isWhileLoopLookahead(token) ||
     isIfStatementLookahead(token) ||
-    isFuntionDeclarationLookahead(token) ||
+    isFunctionDeclarationLookahead(token) ||
     isReturnStatementLookahead(token) ||
     isExpressionLookahead(token)
   );
@@ -107,7 +109,7 @@ export class Parser {
       return this.ifStatement();
     } else if (isWhileLoopLookahead(token)) {
       return this.whileLoop();
-    } else if (isFuntionDeclarationLookahead(token)) {
+    } else if (isFunctionDeclarationLookahead(token)) {
       return this.functionDeclaration();
     } else if (isReturnStatementLookahead(token)) {
       return this.returnStatement();
@@ -136,6 +138,7 @@ export class Parser {
         loc: { start: left.loc.start, end },
       };
     }
+
     const { end } = this.tokens.consume(";").loc;
     return {
       id: uuid(),
@@ -200,8 +203,7 @@ export class Parser {
     this.tokens.consume(")");
     this.tokens.consume("{");
     const body = this.block();
-    this.tokens.consume("}");
-    const { end } = this.tokens.peek().loc;
+    const { end } = this.tokens.consume("}").loc;
 
     return {
       id: uuid(),
@@ -309,7 +311,7 @@ export class Parser {
     return [key, value];
   }
 
-  private parenthesizedExpression(): Expression {
+  private parenthesizedExpression(): ParenthesizedExpression {
     const { start } = this.tokens.consume("(").loc;
     const expression = this.expression();
     const { end } = this.tokens.consume(")").loc;
@@ -369,7 +371,128 @@ export class Parser {
   }
 
   private expression(): Expression {
-    return this.atom();
+    return this.orExpression();
+  }
+
+  private orExpression(): Expression {
+    let left: Expression = this.andExpression();
+    while (this.tokens.peek().type === "||") {
+      this.tokens.consume("||");
+      const right = this.andExpression();
+      left = {
+        id: uuid(),
+        type: "BinaryExpression",
+        left,
+        operator: "||",
+        right,
+        loc: { start: left.loc.start, end: right.loc.end },
+      };
+    }
+    return left;
+  }
+
+  private andExpression(): Expression {
+    let left: Expression = this.equalityExpression();
+    while (this.tokens.peek().type === "&&") {
+      this.tokens.consume("&&");
+      const right = this.equalityExpression();
+      left = {
+        id: uuid(),
+        type: "BinaryExpression",
+        left,
+        operator: "&&",
+        right,
+        loc: { start: left.loc.start, end: right.loc.end },
+      };
+    }
+    return left;
+  }
+
+  private equalityExpression(): Expression {
+    let left: Expression = this.relationalExpression();
+    while (
+      this.tokens.peek().type === "==" ||
+      this.tokens.peek().type === "!="
+    ) {
+      const operator = this.tokens.consume(["==", "!="]).type as "==" | "!=";
+      const right = this.relationalExpression();
+      left = {
+        id: uuid(),
+        type: "BinaryExpression",
+        left,
+        operator,
+        right,
+        loc: { start: left.loc.start, end: right.loc.end },
+      };
+    }
+    return left;
+  }
+
+  private relationalExpression(): Expression {
+    let left: Expression = this.additiveExpression();
+    while (
+      this.tokens.peek().type === "<" ||
+      this.tokens.peek().type === ">" ||
+      this.tokens.peek().type === "<=" ||
+      this.tokens.peek().type === ">="
+    ) {
+      const operator = this.tokens.consume(["<", ">", "<=", ">="]).type as
+        | "<"
+        | ">"
+        | "<="
+        | ">=";
+      const right = this.additiveExpression();
+      left = {
+        id: uuid(),
+        type: "BinaryExpression",
+        left,
+        operator,
+        right,
+        loc: { start: left.loc.start, end: right.loc.end },
+      };
+    }
+    return left;
+  }
+
+  private additiveExpression(): Expression {
+    let left: Expression = this.multiplicativeExpression();
+    while (this.tokens.peek().type === "+" || this.tokens.peek().type === "-") {
+      const operator = this.tokens.consume(["+", "-"]).type as "+" | "-";
+      const right = this.multiplicativeExpression();
+      left = {
+        id: uuid(),
+        type: "BinaryExpression",
+        left,
+        operator,
+        right,
+        loc: { start: left.loc.start, end: right.loc.end },
+      };
+    }
+    return left;
+  }
+
+  private multiplicativeExpression(): Expression {
+    let left: Expression = this.atom();
+    while (
+      this.tokens.peek().type === "*" ||
+      this.tokens.peek().type === "/" ||
+      this.tokens.peek().type === "%"
+    ) {
+      const operator = this.tokens.consume(["*", "/", "%"]).type as
+        | "*"
+        | "/"
+        | "%";
+      const right = this.atom();
+      left = {
+        id: uuid(),
+        type: "BinaryExpression",
+        left,
+        operator,
+        right,
+        loc: { start: left.loc.start, end: right.loc.end },
+      };
+    }
+    return left;
   }
 
   private primitive(): Primitive {

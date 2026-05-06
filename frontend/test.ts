@@ -2,7 +2,7 @@ import { Parser } from "./parser.ts";
 import { Tokenizer, TokenManager } from "./tokenizer.ts";
 
 const program = `
-a = [1,2,3];
+1 < true || true && false;
 `;
 
 const tokenizer = new Tokenizer(program);

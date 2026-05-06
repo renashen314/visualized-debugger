@@ -96,6 +96,26 @@ export interface ExpressionKey {
   expression: Expression;
 }
 
+export interface BinaryExpression extends BaseNode {
+  type: "BinaryExpression";
+  left: Expression;
+  operator:
+    | "+"
+    | "-"
+    | "*"
+    | "/"
+    | "%"
+    | "&&"
+    | "||"
+    | "<"
+    | ">"
+    | "<="
+    | ">="
+    | "=="
+    | "!=";
+  right: Expression;
+}
+
 export interface IdentifierKey {
   type: "IdentifierKey";
   identifier: Identifier;
@@ -109,11 +129,11 @@ export interface ObjectLiteral extends BaseNode {
   pairs: KVPair[];
 }
 
-type RefType = ArrayLiteral | ObjectLiteral;
+export type RefType = ArrayLiteral | ObjectLiteral;
 
 export type Atom = Primitive | ParenthesizedExpression | RefType;
 
-export type Expression = Atom;
+export type Expression = Atom | BinaryExpression;
 
 export interface AssignmentStatement extends BaseNode {
   type: "AssignmentStatement";
