@@ -46,8 +46,12 @@ function isAtomLookahead(token: Token): boolean {
     token.type === "{"
   );
 }
+
+function isUnaryExpressionLookahead(token: Token): boolean {
+  return token.type === "!" || token.type === "-" || token.type === "+";
+}
 function isExpressionLookahead(token: Token): boolean {
-  return isAtomLookahead(token);
+  return isAtomLookahead(token) || isUnaryExpressionLookahead(token);
 }
 
 function isReturnStatementLookahead(token: Token): boolean {
@@ -472,7 +476,7 @@ export class Parser {
   }
 
   private multiplicativeExpression(): Expression {
-    let left: Expression = this.atom();
+    let left: Expression = this.unaryExpression();
     while (
       this.tokens.peek().type === "*" ||
       this.tokens.peek().type === "/" ||
@@ -482,7 +486,7 @@ export class Parser {
         | "*"
         | "/"
         | "%";
-      const right = this.atom();
+      const right = this.unaryExpression();
       left = {
         id: uuid(),
         type: "BinaryExpression",
@@ -491,6 +495,74 @@ export class Parser {
         right,
         loc: { start: left.loc.start, end: right.loc.end },
       };
+    }
+    return left;
+  }
+
+  private unaryExpression(): Expression {
+    while (isUnaryExpressionLookahead(this.tokens.peek())) {
+      const operator = this.tokens.consume(["!", "-", "+"]).type as
+        | "!"
+        | "-"
+        | "+";
+      const argument = this.unaryExpression();
+      return {
+        id: uuid(),
+        type: "UnaryExpression",
+        operator,
+        argument,
+        loc: { start: this.tokens.peek().loc.start, end: argument.loc.end },
+      };
+    }
+    return this.accessOrCallExpression();
+  }
+
+  private accessOrCallExpression(): Expression {
+    let left: Expression = this.atom();
+    while (true) {
+      const token = this.tokens.peek();
+      if (token.type === ".") {
+        this.tokens.consume(".");
+        const property = this.tokens.consume("identifier") as IdentifierToken;
+        left = {
+          id: uuid(),
+          type: "PropAccess",
+          target: left,
+          property: {
+            id: uuid(),
+            type: "Identifier",
+            name: property.val,
+            loc: property.loc,
+          },
+          loc: { start: left.loc.start, end: property.loc.end },
+        };
+      } else if (token.type === "[") {
+        this.tokens.consume("[");
+        const index = this.expression();
+        const { end } = this.tokens.consume("]").loc;
+        left = {
+          id: uuid(),
+          type: "ElementAccess",
+          target: left,
+          index,
+          loc: { start: left.loc.start, end },
+        };
+      } else if (token.type === "(") {
+        this.tokens.consume("(");
+        const args = isExpressionLookahead(this.tokens.peek())
+          ? this.exprList()
+          : [];
+        const { end } = this.tokens.consume(")").loc;
+        left = {
+          id: uuid(),
+          type: "Call",
+          target: left,
+          arguments: args,
+          loc: { start: left.loc.start, end },
+        };
+      } else {
+        break;
+      }
     }
     return left;
   }

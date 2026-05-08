@@ -116,6 +116,33 @@ export interface BinaryExpression extends BaseNode {
   right: Expression;
 }
 
+export interface UnaryExpression extends BaseNode {
+  type: "UnaryExpression";
+  operator: "!" | "-" | "+";
+  argument: Expression;
+}
+
+export interface PropAccess extends BaseNode {
+  type: "PropAccess";
+  target: Expression;
+  property: Identifier;
+}
+
+export interface ElementAccess extends BaseNode {
+  type: "ElementAccess";
+  target: Expression;
+  index: Expression;
+}
+
+export interface Call extends BaseNode {
+  type: "Call";
+  target: Expression;
+  arguments: Expression[];
+}
+
+type Access = PropAccess | ElementAccess;
+type AccessOrCall = Access | Call;
+
 export interface IdentifierKey {
   type: "IdentifierKey";
   identifier: Identifier;
@@ -133,7 +160,11 @@ export type RefType = ArrayLiteral | ObjectLiteral;
 
 export type Atom = Primitive | ParenthesizedExpression | RefType;
 
-export type Expression = Atom | BinaryExpression;
+export type Expression =
+  | Atom
+  | BinaryExpression
+  | UnaryExpression
+  | AccessOrCall;
 
 export interface AssignmentStatement extends BaseNode {
   type: "AssignmentStatement";

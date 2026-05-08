@@ -2,7 +2,15 @@ import { Parser } from "./parser.ts";
 import { Tokenizer, TokenManager } from "./tokenizer.ts";
 
 const program = `
-1 < true || true && false;
+fn main() {
+  count = 0;
+
+  while (count < 10) {
+    count = count + 1;
+    print(count);
+  }
+}
+main();
 `;
 
 const tokenizer = new Tokenizer(program);
