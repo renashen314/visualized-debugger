@@ -177,7 +177,7 @@ export interface ExpressionStatement extends BaseNode {
   expression: Expression;
 }
 
-type ASTNode =
+export type ASTNode =
   | Statement
   | Expression
   | AssignmentStatement
