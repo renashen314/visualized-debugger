@@ -1,7 +1,7 @@
 import { uuid } from "../utils.ts";
-import { ASTNode, FunctionDeclaration } from "../frontend/ast.ts";
+import type { ASTNode, FunctionDeclaration } from "../frontend/ast.ts";
 
-type Pointer = string;
+export type Pointer = string;
 
 type NullValue = { type: "null" };
 type NumberValue = { type: "number"; value: number };
@@ -47,6 +47,7 @@ export type VarName = string;
 export class LexicalEnvironment {
   private readonly variables: Record<VarName, Pointer> = {};
   private readonly parent?: LexicalEnvironment;
+
   constructor(parent?: LexicalEnvironment) {
     this.parent = parent;
   }

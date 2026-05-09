@@ -1,7 +1,9 @@
-import { TokenLocation } from "./tokenizer";
+import type { TokenLocation } from "./tokenizer.ts";
+
+export type ASTNodeId = string;
 
 interface BaseNode {
-  id: string;
+  id: ASTNodeId;
   loc: TokenLocation;
 }
 
@@ -178,6 +180,7 @@ export interface ExpressionStatement extends BaseNode {
 }
 
 export type ASTNode =
+  | Block
   | Statement
   | Expression
   | AssignmentStatement
