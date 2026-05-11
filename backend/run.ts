@@ -1,4 +1,4 @@
-import { Heap, CallStack, LexicalEnvironment } from "./memory.ts";
+import { Heap, CallStack, LexicalEnvironment, type Pointer } from "./memory.ts";
 import type { ASTNodeId, Block } from "../frontend/ast.ts";
 import { exec, initCtx } from "./exec.ts";
 import type { Accumulator, Context } from "./context.ts";
@@ -25,7 +25,7 @@ class Executor {
     this.printed = config.printed;
     this.execStack = [initCtx(config.program)];
 
-    this.acc = { val: this.heap.set({ type: "null" }) };
+    this.acc = { val: this.heap.set({ type: "null" }), isReturn: false };
   }
 
   addBreakpoint(id: ASTNodeId) {
@@ -39,7 +39,8 @@ class Executor {
   advance() {
     while (this.execStack.length > 0) {
       const curr = this.execStack[this.execStack.length - 1];
-      if (this.breakpoints.has(curr.node.id)) {
+      if (this.breakpoints.has(curr.node.id) && !curr.isBreakpointed) {
+        curr.isBreakpointed = true;
         return this.state;
       }
       exec(curr, {
@@ -49,19 +50,34 @@ class Executor {
         acc: this.acc,
       });
     }
+    return this.state();
   }
 
-  private state() {
-    throw new Error("todo");
+  private state(): string[] {
+    return this.printed;
   }
 }
 
 export function executor(program: Block): Executor {
   const printed: string[] = [];
-
   const heap = new Heap();
   const builtinEnv = new LexicalEnvironment();
+
+  const printPointer = heap.set({
+    type: "builtinfunction",
+    impl: (args: Pointer[]) => {
+      const strs: string[] = [];
+      for (const argptr of args) {
+        strs.push(JSON.stringify(heap.get(argptr)));
+      }
+      printed.push(strs.join(" "));
+      return heap.set({ type: "null" });
+    },
+  });
+
   const globalEnv = new LexicalEnvironment(builtinEnv);
+  globalEnv.set("print", printPointer);
+
   const callStack = new CallStack();
 
   callStack.push("", program, globalEnv);

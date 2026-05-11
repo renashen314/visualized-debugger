@@ -2,11 +2,12 @@ import type { ASTNode } from "../frontend/ast.ts";
 import type {
   Accumulator,
   BlockContext,
+  CallContext,
   Context,
   ExpressionStatementContext,
   PrimitiveContext,
 } from "./context.ts";
-import type { CallStack, Heap } from "./memory.ts";
+import { LexicalEnvironment, type CallStack, type Heap } from "./memory.ts";
 
 export function initCtx(node: ASTNode): Context {
   switch (node.type) {
@@ -20,12 +21,13 @@ export function initCtx(node: ASTNode): Context {
       return { type: "Primitive", node, phase: "init" };
     case "ExpressionStatement":
       return { type: "ExpressionStatement", node, phase: "init" };
+    case "Call":
+      return { type: "Call", node, phase: "init", args: [] };
     case "IfStatement":
     case "WhileLoop":
     case "FunctionDeclaration":
     case "ReturnStatement":
     case "AssignmentStatement":
-    case "Call":
     default: {
       throw new Error("TODO");
     }
@@ -111,7 +113,69 @@ export function execExpressionStatement(
   }
 }
 
+export function execCall(ctx: CallContext, state: State) {
+  if (ctx.phase === "init") {
+    ctx.phase = "targetcomputed";
+    state.execStack.push(initCtx(ctx.node.target));
+    return;
+  }
+
+  if (ctx.phase === "targetcomputed") {
+    ctx.target = state.acc.val;
+    if (ctx.node.arguments.length > 0) {
+      ctx.phase = "argcomputed";
+      state.execStack.push(initCtx(ctx.node.arguments[0]));
+    } else {
+      ctx.phase = "callready";
+    }
+    return;
+  }
+  if (ctx.phase === "argcomputed") {
+    ctx.args.push(state.acc.val);
+
+    if (ctx.args.length < ctx.node.arguments.length) {
+      state.execStack.push(initCtx(ctx.node.arguments[ctx.args.length]));
+    } else {
+      ctx.phase = "callready";
+    }
+    return;
+  }
+
+  if (ctx.phase === "callready") {
+    const fnValue = state.heap.get(ctx.target!);
+    if (fnValue.type === "builtinfunction") {
+      state.acc.val = fnValue.impl(ctx.args);
+      state.execStack.pop();
+    } else if (fnValue.type === "function") {
+      const newEnv = new LexicalEnvironment(fnValue.parentEnv);
+      fnValue.node.params?.forEach((param, i) => {
+        newEnv.set(param.name, ctx.args[i] ?? state.heap.set({ type: "null" }));
+      });
+      state.callStack.push(fnValue.node.name, fnValue.node.body, newEnv);
+      state.execStack.push(initCtx(fnValue.node.body));
+    } else {
+      throw new Error(`Target is not a function: ${fnValue.type}`);
+    }
+    return;
+  }
+
+  if (ctx.phase === "done") {
+    state.callStack.pop();
+    if (state.acc.isReturn) {
+      state.acc.isReturn = false;
+    } else {
+      state.acc.val = state.heap.set({ type: "null" });
+    }
+    state.execStack.pop();
+  }
+}
+
 export function exec(ctx: Context, state: State) {
+  if (state.acc.isReturn && ctx.type !== "Call") {
+    state.execStack.pop();
+    return;
+  }
+
   switch (ctx.type) {
     case "Block":
       return execBlock(ctx, state);
@@ -119,6 +183,8 @@ export function exec(ctx: Context, state: State) {
       return execExpressionStatement(ctx, state);
     case "Primitive":
       return execPrimitive(ctx, state);
+    case "Call":
+      return execCall(ctx, state);
     default:
       break;
   }
