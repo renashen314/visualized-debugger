@@ -2,6 +2,7 @@ import { Heap, CallStack, LexicalEnvironment, type Pointer } from "./memory.ts";
 import type { ASTNodeId, Block } from "../frontend/ast.ts";
 import { exec, initCtx } from "./exec.ts";
 import type { Accumulator, Context } from "./context.ts";
+import { printAny } from "./builtin.ts";
 
 interface Config {
   program: Block;
@@ -54,7 +55,9 @@ class Executor {
   }
 
   private state(): string[] {
-    return this.printed;
+    const printed = [...this.printed];
+    this.printed.length = 0;
+    return printed;
   }
 }
 
@@ -68,7 +71,7 @@ export function executor(program: Block): Executor {
     impl: (args: Pointer[]) => {
       const strs: string[] = [];
       for (const argptr of args) {
-        strs.push(JSON.stringify(heap.get(argptr)));
+        strs.push(printAny(heap, heap.get(argptr)));
       }
       printed.push(strs.join(" "));
       return heap.set({ type: "null" });

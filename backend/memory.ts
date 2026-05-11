@@ -8,8 +8,11 @@ type NumberValue = { type: "number"; value: number };
 type StringValue = { type: "string"; value: string };
 type BooleanValue = { type: "boolean"; value: boolean };
 
-type ArrayValue = { type: "array"; elements: Pointer[] };
-type ObjectValue = { type: "object"; properties: Record<string, Pointer> };
+export type ArrayValue = { type: "array"; elements: Pointer[] };
+export type ObjectValue = {
+  type: "object";
+  properties: Record<string, Pointer>;
+};
 type FunctionValue =
   | { type: "builtinfunction"; impl: (args: Pointer[]) => Pointer }
   | {
@@ -18,8 +21,17 @@ type FunctionValue =
       parentEnv: LexicalEnvironment;
     };
 
-type PrimitiveValue = NullValue | NumberValue | StringValue | BooleanValue;
-type RuntimeValue = PrimitiveValue | ArrayValue | ObjectValue | FunctionValue;
+export type PrimitiveValue =
+  | NullValue
+  | NumberValue
+  | StringValue
+  | BooleanValue;
+
+export type RuntimeValue =
+  | PrimitiveValue
+  | ArrayValue
+  | ObjectValue
+  | FunctionValue;
 
 export class Heap {
   private readonly storage: Record<Pointer, RuntimeValue> = {};
