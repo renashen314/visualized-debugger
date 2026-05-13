@@ -40,12 +40,12 @@ export function printAny(heap: Heap, v: RuntimeValue): string {
     case "null":
       return printPrimitive(v);
     case "object":
+      return printObject(heap, v);
     case "array":
-
+      return printArray(heap, v);
     case "function":
     case "builtinfunction":
       throw new Error(`Cannot print ${v.type}`);
-
       break;
     default:
       throw new Error(`Cannot print this type`);

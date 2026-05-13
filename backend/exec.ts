@@ -1,13 +1,27 @@
-import type { ASTNode } from "../frontend/ast.ts";
+import type { ArrayLiteral, ASTNode } from "../frontend/ast.ts";
+import { uuid } from "../utils.ts";
 import type {
   Accumulator,
+  ArrayLiteralContext,
+  BinaryExpressionContext,
   BlockContext,
   CallContext,
   Context,
   ExpressionStatementContext,
+  ObjectLiteralContext,
+  ParenthesizedExpresionContext,
   PrimitiveContext,
 } from "./context.ts";
-import { LexicalEnvironment, type CallStack, type Heap } from "./memory.ts";
+import {
+  coerceStr,
+  isPrimitive,
+  isPrimitiveEqual,
+  isTruthy,
+  LexicalEnvironment,
+  type Pointer,
+  type CallStack,
+  type Heap,
+} from "./memory.ts";
 
 export function initCtx(node: ASTNode): Context {
   switch (node.type) {
@@ -23,6 +37,14 @@ export function initCtx(node: ASTNode): Context {
       return { type: "ExpressionStatement", node, phase: "init" };
     case "Call":
       return { type: "Call", node, phase: "init", args: [] };
+    case "ParenthesizedExpression":
+      return { type: "ParenthesizedExpression", node, phase: "init" };
+    case "ArrayLiteral":
+      return { type: "ArrayLiteral", node, phase: "init", elems: [] };
+    case "ObjectLiteral":
+      return { type: "ObjectLiteral", node, phase: "init", pairs: [] };
+    case "BinaryExpression":
+      return { type: "BinaryExpression", node, phase: "init" };
     case "IfStatement":
     case "WhileLoop":
     case "FunctionDeclaration":
@@ -97,6 +119,7 @@ export function execPrimitive(ctx: PrimitiveContext, state: State) {
     return;
   }
 }
+
 export function execExpressionStatement(
   ctx: ExpressionStatementContext,
   state: State,
@@ -170,6 +193,282 @@ export function execCall(ctx: CallContext, state: State) {
   }
 }
 
+export function execParenthesizedExpression(
+  ctx: ParenthesizedExpresionContext,
+  state: State,
+) {
+  if (ctx.phase === "init") {
+    state.execStack.push(initCtx(ctx.node.expression));
+    ctx.phase = "done";
+    return;
+  }
+
+  if (ctx.phase === "done") {
+    state.execStack.pop();
+    return;
+  }
+}
+
+function execArrayLiteral(ctx: ArrayLiteralContext, state: State) {
+  if (ctx.phase === "init") {
+    if (ctx.node.elements.length === 0) {
+      ctx.phase = "done";
+    } else {
+      ctx.phase = "elemscomputed";
+      state.execStack.push(initCtx(ctx.node.elements[0]));
+    }
+    return;
+  }
+
+  if (ctx.phase === "elemscomputed") {
+    ctx.elems.push(state.acc.val);
+    if (ctx.elems.length < ctx.node.elements.length) {
+      state.execStack.push(initCtx(ctx.node.elements[ctx.elems.length]));
+    } else {
+      ctx.phase = "done";
+    }
+    return;
+  }
+  if (ctx.phase === "done") {
+    state.acc.val = state.heap.set({ type: "array", elements: ctx.elems });
+    state.execStack.pop();
+    return;
+  }
+}
+
+export function execObjectLiteral(ctx: ObjectLiteralContext, state: State) {
+  if (ctx.phase === "init") {
+    if (ctx.node.pairs.length === 0) {
+      ctx.phase = "done";
+    } else {
+      ctx.phase = "keycomputed";
+      const key = ctx.node.pairs[0][0];
+      if (key.type === "ExpressionKey") {
+        state.execStack.push(initCtx(key.expression));
+      }
+      if (key.type === "IdentifierKey") {
+        state.execStack.push(
+          initCtx({
+            id: uuid(),
+            type: "StringLiteral",
+            value: key.identifier.name,
+            loc: key.identifier.loc,
+          }),
+        );
+      }
+    }
+    return;
+  }
+  if (ctx.phase === "keycomputed") {
+    const keyVal = state.heap.get(state.acc.val);
+    if (!isPrimitive(keyVal)) {
+      throw new Error(`Object key must be primitive, but got ${keyVal.type}`);
+    }
+    ctx.key = keyVal.type === "string" ? keyVal.value : coerceStr(keyVal);
+    ctx.phase = "valuecomputed";
+    state.execStack.push(initCtx(ctx.node.pairs[ctx.pairs.length][1]));
+    return;
+  }
+  if (ctx.phase === "valuecomputed") {
+    ctx.pairs.push([ctx.key!, state.acc.val]);
+    if (ctx.pairs.length < ctx.node.pairs.length) {
+      ctx.phase = "keycomputed";
+      const key = ctx.node.pairs[ctx.pairs.length][0];
+      if (key.type === "ExpressionKey") {
+        state.execStack.push(initCtx(key.expression));
+      }
+      if (key.type === "IdentifierKey") {
+        state.execStack.push(
+          initCtx({
+            id: uuid(),
+            type: "StringLiteral",
+            value: key.identifier.name,
+            loc: key.identifier.loc,
+          }),
+        );
+      }
+    } else {
+      ctx.phase = "done";
+    }
+    return;
+  }
+
+  if (ctx.phase === "done") {
+    state.acc.val = state.heap.set({
+      type: "object",
+      properties: Object.fromEntries(ctx.pairs),
+    });
+    state.execStack.pop();
+    return;
+  }
+}
+
+export function execBinaryExpression(
+  ctx: BinaryExpressionContext,
+  state: State,
+) {
+  if (ctx.phase === "init") {
+    ctx.phase = "lhscomputed";
+    state.execStack.push(initCtx(ctx.node.left));
+    return;
+  }
+
+  if (ctx.phase === "lhscomputed") {
+    ctx.left = state.acc.val;
+    const leftVal = state.heap.get(ctx.left);
+    if (ctx.node.operator === "&&" && !isTruthy(leftVal)) {
+      state.acc.val = state.heap.set({ type: "boolean", value: false });
+      state.execStack.pop();
+      return;
+    }
+    if (ctx.node.operator === "||" && isTruthy(leftVal)) {
+      state.acc.val = state.heap.set({ type: "boolean", value: true });
+      state.execStack.pop();
+      return;
+    }
+    ctx.phase = "rhscomputed";
+    state.execStack.push(initCtx(ctx.node.right));
+    return;
+  }
+  if (ctx.phase === "rhscomputed") {
+    const lptr = ctx.left!;
+    const rptr = state.acc.val;
+    const leftVal = state.heap.get(lptr);
+    const rightVal = state.heap.get(rptr);
+    let result: Pointer;
+    switch (ctx.node.operator) {
+      case "+":
+        if (leftVal.type === "number" && rightVal.type === "number") {
+          result = state.heap.set({
+            type: "number",
+            value: leftVal.value + rightVal.value,
+          });
+        } else if (leftVal.type === "string" && rightVal.type === "string") {
+          result = state.heap.set({
+            type: "string",
+            value: leftVal.value + rightVal.value,
+          });
+        } else {
+          throw new Error(
+            `Invalid operands for +: ${leftVal.type} and ${rightVal.type}`,
+          );
+        }
+        break;
+      case "-":
+        if (leftVal.type !== "number" || rightVal.type !== "number") {
+          throw new Error(
+            `Invalid operands for -: ${leftVal.type} and ${rightVal.type}`,
+          );
+        }
+        result = state.heap.set({
+          type: "number",
+          value: leftVal.value - rightVal.value,
+        });
+        break;
+      case "*":
+        if (leftVal.type !== "number" || rightVal.type !== "number")
+          throw new Error("Operands must be numbers");
+        result = state.heap.set({
+          type: "number",
+          value: leftVal.value * rightVal.value,
+        });
+        break;
+      case "/":
+        if (leftVal.type !== "number" || rightVal.type !== "number")
+          throw new Error("Operands must be numbers");
+        result = state.heap.set({
+          type: "number",
+          value: leftVal.value / rightVal.value,
+        });
+        break;
+      case "%":
+        if (leftVal.type !== "number" || rightVal.type !== "number")
+          throw new Error("Operands must be numbers");
+        result = state.heap.set({
+          type: "number",
+          value: leftVal.value % rightVal.value,
+        });
+        break;
+      case ">":
+        if (leftVal.type !== "number" || rightVal.type !== "number")
+          throw new Error("Operands must be numbers");
+        result = state.heap.set({
+          type: "boolean",
+          value: leftVal.value > rightVal.value,
+        });
+        break;
+      case "<":
+        if (leftVal.type !== "number" || rightVal.type !== "number")
+          throw new Error("Operands must be numbers");
+        result = state.heap.set({
+          type: "boolean",
+          value: leftVal.value < rightVal.value,
+        });
+        break;
+      case ">=":
+        if (leftVal.type !== "number" || rightVal.type !== "number")
+          throw new Error("Operands must be numbers");
+        result = state.heap.set({
+          type: "boolean",
+          value: leftVal.value >= rightVal.value,
+        });
+        break;
+      case "<=":
+        if (leftVal.type !== "number" || rightVal.type !== "number")
+          throw new Error("Operands must be numbers");
+        result = state.heap.set({
+          type: "boolean",
+          value: leftVal.value <= rightVal.value,
+        });
+        break;
+      case "==":
+        if (lptr === rptr) {
+          result = state.heap.set({ type: "boolean", value: true });
+        } else {
+          if (isPrimitive(leftVal) && isPrimitive(rightVal)) {
+            result = state.heap.set({
+              type: "boolean",
+              value: isPrimitiveEqual(leftVal, rightVal),
+            });
+          } else {
+            result = state.heap.set({ type: "boolean", value: false });
+          }
+        }
+        break;
+      case "!=":
+        if (lptr === rptr) {
+          result = state.heap.set({ type: "boolean", value: false });
+        } else {
+          if (isPrimitive(leftVal) && isPrimitive(rightVal)) {
+            result = state.heap.set({
+              type: "boolean",
+              value: !isPrimitiveEqual(leftVal, rightVal),
+            });
+          } else {
+            result = state.heap.set({ type: "boolean", value: true });
+          }
+        }
+        break;
+      case "&&":
+        result = state.heap.set({
+          type: "boolean",
+          value: isTruthy(leftVal) && isTruthy(rightVal),
+        });
+        break;
+      case "||":
+        result = state.heap.set({
+          type: "boolean",
+          value: isTruthy(leftVal) || isTruthy(rightVal),
+        });
+        break;
+    }
+
+    state.acc.val = result;
+    state.execStack.pop();
+    return;
+  }
+}
+
 export function exec(ctx: Context, state: State) {
   if (state.acc.isReturn && ctx.type !== "Call") {
     state.execStack.pop();
@@ -185,6 +484,14 @@ export function exec(ctx: Context, state: State) {
       return execPrimitive(ctx, state);
     case "Call":
       return execCall(ctx, state);
+    case "ParenthesizedExpression":
+      return execParenthesizedExpression(ctx, state);
+    case "ArrayLiteral":
+      return execArrayLiteral(ctx, state);
+    case "ObjectLiteral":
+      return execObjectLiteral(ctx, state);
+    case "BinaryExpression":
+      return execBinaryExpression(ctx, state);
     default:
       break;
   }

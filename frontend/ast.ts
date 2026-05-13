@@ -153,6 +153,7 @@ export interface IdentifierKey {
 type Key = ExpressionKey | IdentifierKey;
 
 export type KVPair = [Key, Expression];
+
 export interface ObjectLiteral extends BaseNode {
   type: "ObjectLiteral";
   pairs: KVPair[];

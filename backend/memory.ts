@@ -13,6 +13,7 @@ export type ObjectValue = {
   type: "object";
   properties: Record<string, Pointer>;
 };
+
 type FunctionValue =
   | { type: "builtinfunction"; impl: (args: Pointer[]) => Pointer }
   | {
@@ -32,6 +33,65 @@ export type RuntimeValue =
   | ArrayValue
   | ObjectValue
   | FunctionValue;
+
+export function isPrimitive(v: RuntimeValue): v is PrimitiveValue {
+  return (
+    v.type === "boolean" ||
+    v.type === "number" ||
+    v.type === "string" ||
+    v.type === "null"
+  );
+}
+
+export function coerceStr(v: PrimitiveValue): string {
+  switch (v.type) {
+    case "string":
+      return v.value;
+    case "number":
+    case "boolean":
+      return String(v.value);
+    case "null":
+      return "null";
+  }
+}
+
+export function isTruthy(v: RuntimeValue) {
+  if (v.type === "string" && v.value === "") {
+    return false;
+  }
+  if (v.type === "number" && v.value === 0) {
+    return false;
+  }
+  if (v.type === "null") {
+    return false;
+  }
+  if (v.type === "boolean" && !v.value) {
+    return false;
+  }
+  return true;
+}
+
+export function isPrimitiveEqual(
+  a: PrimitiveValue,
+  b: PrimitiveValue,
+): boolean {
+  if (a.type === "number" && b.type === "number") {
+    return a.value === b.value;
+  }
+
+  if (a.type === "string" && b.type === "string") {
+    return a.value === b.value;
+  }
+
+  if (a.type === "boolean" && b.type === "boolean") {
+    return a.value === b.value;
+  }
+
+  if (a.type === "null" && b.type === "null") {
+    return true;
+  }
+  return false;
+}
 
 export class Heap {
   private readonly storage: Record<Pointer, RuntimeValue> = {};

@@ -5,10 +5,11 @@ import { Tokenizer, TokenManager } from "./tokenizer.ts";
 // const program = `
 // print({"a": 1, "b": 2});
 // print(["hello", 123,"world"]);
+// print(["hello", 1, 2]);
+// print({"a": 1, abc: 123, 123: "a"});
 // `;
 const program = `
-print("hello");
-print(12321.1);
+print([] == []);
 `;
 
 const tokenizer = new Tokenizer(program);
@@ -24,6 +25,4 @@ exec.addBreakpoint("7");
 
 const printed = exec.advance();
 
-console.log(exec.advance());
-console.log(exec.advance());
 console.log(exec.advance());
