@@ -9,7 +9,7 @@ import { Tokenizer, TokenManager } from "./tokenizer.ts";
 // print({"a": 1, abc: 123, 123: "a"});
 // `;
 const program = `
-print([] == []);
+print(1 + --123);
 `;
 
 const tokenizer = new Tokenizer(program);

@@ -7,6 +7,7 @@ import type {
   ObjectLiteral,
   ParenthesizedExpression,
   Primitive,
+  UnaryExpression,
 } from "../frontend/ast.ts";
 import type { Pointer } from "./memory.ts";
 
@@ -65,6 +66,13 @@ export interface BinaryExpressionContext extends ContextBase {
   phase: "init" | "lhscomputed" | "rhscomputed";
   left?: Pointer;
 }
+
+export interface UnaryExpressionContext extends ContextBase {
+  type: "UnaryExpression";
+  node: UnaryExpression;
+  phase: "init" | "argcomputed";
+}
+
 export type Context =
   | BlockContext
   | PrimitiveContext
@@ -72,7 +80,9 @@ export type Context =
   | CallContext
   | ParenthesizedExpresionContext
   | ArrayLiteralContext
-  | ObjectLiteralContext;
+  | ObjectLiteralContext
+  | BinaryExpressionContext
+  | UnaryExpressionContext;
 
 export interface Accumulator {
   val: Pointer;

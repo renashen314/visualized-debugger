@@ -1,4 +1,8 @@
-import type { ArrayLiteral, ASTNode } from "../frontend/ast.ts";
+import type {
+  ArrayLiteral,
+  ASTNode,
+  UnaryExpression,
+} from "../frontend/ast.ts";
 import { uuid } from "../utils.ts";
 import type {
   Accumulator,
@@ -11,6 +15,7 @@ import type {
   ObjectLiteralContext,
   ParenthesizedExpresionContext,
   PrimitiveContext,
+  UnaryExpressionContext,
 } from "./context.ts";
 import {
   coerceStr,
@@ -45,6 +50,8 @@ export function initCtx(node: ASTNode): Context {
       return { type: "ObjectLiteral", node, phase: "init", pairs: [] };
     case "BinaryExpression":
       return { type: "BinaryExpression", node, phase: "init" };
+    case "UnaryExpression":
+      return { type: "UnaryExpression", node, phase: "init" };
     case "IfStatement":
     case "WhileLoop":
     case "FunctionDeclaration":
@@ -469,6 +476,37 @@ export function execBinaryExpression(
   }
 }
 
+export function execUnaryExpression(ctx: UnaryExpressionContext, state: State) {
+  if (ctx.phase === "init") {
+    ctx.phase = "argcomputed";
+    state.execStack.push(initCtx(ctx.node.argument));
+    return;
+  }
+  if (ctx.phase === "argcomputed") {
+    const val = state.heap.get(state.acc.val);
+
+    let result: Pointer;
+    switch (ctx.node.operator) {
+      case "!":
+        result = state.heap.set({ type: "boolean", value: !isTruthy(val) });
+        break;
+      case "-":
+        if (val.type !== "number")
+          throw new Error(`Unary '-' expects a number, but got ${val.type} `);
+        result = state.heap.set({ type: "number", value: -val.value });
+        break;
+      case "+":
+        if (val.type !== "number")
+          throw new Error(`Unary '+' expects a number, but got ${val.type} `);
+        result = state.heap.set({ type: "number", value: val.value });
+        break;
+    }
+    state.acc.val = result;
+    state.execStack.pop();
+    return;
+  }
+}
+
 export function exec(ctx: Context, state: State) {
   if (state.acc.isReturn && ctx.type !== "Call") {
     state.execStack.pop();
@@ -492,6 +530,8 @@ export function exec(ctx: Context, state: State) {
       return execObjectLiteral(ctx, state);
     case "BinaryExpression":
       return execBinaryExpression(ctx, state);
+    case "UnaryExpression":
+      return execUnaryExpression(ctx, state);
     default:
       break;
   }
