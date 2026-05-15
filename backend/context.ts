@@ -3,10 +3,12 @@ import type {
   BinaryExpression,
   Block,
   Call,
+  ElementAccess,
   ExpressionStatement,
   ObjectLiteral,
   ParenthesizedExpression,
   Primitive,
+  PropAccess,
   UnaryExpression,
 } from "../frontend/ast.ts";
 import type { Pointer } from "./memory.ts";
@@ -72,6 +74,17 @@ export interface UnaryExpressionContext extends ContextBase {
   node: UnaryExpression;
   phase: "init" | "argcomputed";
 }
+export interface PropAccessContext extends ContextBase {
+  type: "PropAccess";
+  node: PropAccess;
+  phase: "init" | "targetcomputed";
+}
+export interface ElementAccessContext extends ContextBase {
+  type: "ElementAccess";
+  node: ElementAccess;
+  phase: "init" | "targetcomputed" | "idxcomputed";
+  target?: Pointer;
+}
 
 export type Context =
   | BlockContext
@@ -82,7 +95,9 @@ export type Context =
   | ArrayLiteralContext
   | ObjectLiteralContext
   | BinaryExpressionContext
-  | UnaryExpressionContext;
+  | UnaryExpressionContext
+  | PropAccessContext
+  | ElementAccessContext;
 
 export interface Accumulator {
   val: Pointer;

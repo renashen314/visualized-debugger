@@ -11,10 +11,12 @@ import type {
   BlockContext,
   CallContext,
   Context,
+  ElementAccessContext,
   ExpressionStatementContext,
   ObjectLiteralContext,
   ParenthesizedExpresionContext,
   PrimitiveContext,
+  PropAccessContext,
   UnaryExpressionContext,
 } from "./context.ts";
 import {
@@ -52,6 +54,10 @@ export function initCtx(node: ASTNode): Context {
       return { type: "BinaryExpression", node, phase: "init" };
     case "UnaryExpression":
       return { type: "UnaryExpression", node, phase: "init" };
+    case "PropAccess":
+      return { type: "PropAccess", node, phase: "init" };
+    case "ElementAccess":
+      return { type: "ElementAccess", node, phase: "init" };
     case "IfStatement":
     case "WhileLoop":
     case "FunctionDeclaration":
@@ -507,6 +513,66 @@ export function execUnaryExpression(ctx: UnaryExpressionContext, state: State) {
   }
 }
 
+export function execPropAccess(ctx: PropAccessContext, state: State) {
+  if (ctx.phase === "init") {
+    ctx.phase = "targetcomputed";
+    state.execStack.push(initCtx(ctx.node.target));
+    return;
+  }
+  if (ctx.phase === "targetcomputed") {
+    const targetVal = state.heap.get(state.acc.val);
+    if (targetVal.type !== "object") {
+      throw new Error(
+        `Cannot access property ${ctx.node.property} of ${targetVal.type}`,
+      );
+    }
+    const propPtr = targetVal.properties[ctx.node.property.name];
+    state.acc.val = propPtr ?? state.heap.set({ type: "null" });
+    state.execStack.pop();
+    return;
+  }
+}
+
+export function execElementAccess(ctx: ElementAccessContext, state: State) {
+  if (ctx.phase === "init") {
+    ctx.phase = "targetcomputed";
+    state.execStack.push(initCtx(ctx.node.target));
+    return;
+  }
+  if (ctx.phase === "targetcomputed") {
+    ctx.target = state.acc.val;
+    ctx.phase = "idxcomputed";
+    state.execStack.push(initCtx(ctx.node.index));
+    return;
+  }
+  if (ctx.phase === "idxcomputed") {
+    const targetVal = state.heap.get(ctx.target!);
+    const indexVal = state.heap.get(state.acc.val);
+
+    if (targetVal.type === "array") {
+      if (indexVal.type !== "number") {
+        throw new Error(
+          `Array index must be a number, but got ${indexVal.type}`,
+        );
+      }
+      const element = targetVal.elements[indexVal.value];
+      state.acc.val = element ?? state.heap.set({ type: "null" });
+    } else if (targetVal.type === "object") {
+      if (!isPrimitive(indexVal)) {
+        throw new Error(
+          `Object key must be a primitive, but got ${indexVal.type}`,
+        );
+      }
+      const prop = targetVal.properties[coerceStr(indexVal)];
+      state.acc.val = prop ?? state.heap.set({ type: "null" });
+    } else {
+      throw new Error(`Cannot access element of ${targetVal.type}`);
+    }
+    state.execStack.pop();
+    return;
+  }
+}
+
 export function exec(ctx: Context, state: State) {
   if (state.acc.isReturn && ctx.type !== "Call") {
     state.execStack.pop();
@@ -532,6 +598,10 @@ export function exec(ctx: Context, state: State) {
       return execBinaryExpression(ctx, state);
     case "UnaryExpression":
       return execUnaryExpression(ctx, state);
+    case "PropAccess":
+      return execPropAccess(ctx, state);
+    case "ElementAccess":
+      return execElementAccess(ctx, state);
     default:
       break;
   }
