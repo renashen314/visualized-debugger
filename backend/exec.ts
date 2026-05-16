@@ -1,6 +1,7 @@
 import type {
   ArrayLiteral,
   ASTNode,
+  Identifier,
   UnaryExpression,
 } from "../frontend/ast.ts";
 import { uuid } from "../utils.ts";
@@ -13,6 +14,7 @@ import type {
   Context,
   ElementAccessContext,
   ExpressionStatementContext,
+  IdentifierAssignmentContext,
   ObjectLiteralContext,
   ParenthesizedExpresionContext,
   PrimitiveContext,
@@ -34,6 +36,17 @@ export function initCtx(node: ASTNode): Context {
   switch (node.type) {
     case "Block":
       return { type: "Block", node, pc: 0 };
+    case "AssignmentStatement":
+      if (node.left.type === "Identifier") {
+        return { type: "IdentifierAssignment", node, phase: "init" };
+      }
+      if (node.left.type === "PropAccess") {
+        return { type: "PropAccessAssignment", node, phase: "init" };
+      }
+      if (node.left.type === "ElementAccess") {
+        return { type: "ElemAccessAssignment", node, phase: "init" };
+      }
+      throw new Error(`Unexpected assignment targer: ${node.left.type}`);
     case "NullLiteral":
     case "BooleanLiteral":
     case "StringLiteral":
@@ -573,6 +586,23 @@ export function execElementAccess(ctx: ElementAccessContext, state: State) {
   }
 }
 
+export function execIdentifierAssignment(
+  ctx: IdentifierAssignmentContext,
+  state: State,
+) {
+  if (ctx.phase === "init") {
+    ctx.phase = "rhscomputed";
+    state.execStack.push(initCtx(ctx.node.right));
+    return;
+  }
+  if (ctx.phase === "rhscomputed") {
+    const { name } = ctx.node.left as Identifier;
+    state.callStack.peek().env.set(name, state.acc.val);
+    state.execStack.pop();
+    return;
+  }
+}
+
 export function exec(ctx: Context, state: State) {
   if (state.acc.isReturn && ctx.type !== "Call") {
     state.execStack.pop();
@@ -602,6 +632,10 @@ export function exec(ctx: Context, state: State) {
       return execPropAccess(ctx, state);
     case "ElementAccess":
       return execElementAccess(ctx, state);
+    case "IdentifierAssignment":
+      return execIdentifierAssignment(ctx, state);
+    case "PropAccessAssignment":
+    case "ElemAccessAssignment":
     default:
       break;
   }

@@ -1,5 +1,6 @@
 import type {
   ArrayLiteral,
+  AssignmentStatement,
   BinaryExpression,
   Block,
   Call,
@@ -86,6 +87,23 @@ export interface ElementAccessContext extends ContextBase {
   target?: Pointer;
 }
 
+export interface IdentifierAssignmentContext extends ContextBase {
+  type: "IdentifierAssignment";
+  node: AssignmentStatement;
+  phase: "init" | "rhscomputed";
+}
+export interface PropAccessAssignmentContext extends ContextBase {
+  type: "PropAccessAssignment";
+  node: AssignmentStatement;
+  phase: "init" | "rhscomputed" | "targetcomputed";
+  right?: Pointer;
+}
+export interface ElemAccessAssignmentContext extends ContextBase {
+  type: "ElemAccessAssignment";
+  node: AssignmentStatement;
+  phase: "init" | "rhscomputed" | "targetcomputed" | "idxcomputed";
+}
+
 export type Context =
   | BlockContext
   | PrimitiveContext
@@ -97,7 +115,10 @@ export type Context =
   | BinaryExpressionContext
   | UnaryExpressionContext
   | PropAccessContext
-  | ElementAccessContext;
+  | ElementAccessContext
+  | IdentifierAssignmentContext
+  | PropAccessAssignmentContext
+  | ElemAccessAssignmentContext;
 
 export interface Accumulator {
   val: Pointer;

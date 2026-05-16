@@ -3,10 +3,9 @@ import { Parser } from "./parser.ts";
 import { Tokenizer, TokenManager } from "./tokenizer.ts";
 
 const program = `
-print([
-{
-  k: [1,2,3]
-}][0].k[2]);
+obj = {k:5};
+obj2 = obj;
+print(obj2 == obj);
 `;
 
 const tokenizer = new Tokenizer(program);
