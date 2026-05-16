@@ -1,7 +1,9 @@
 import type {
   ArrayLiteral,
   ASTNode,
+  ElementAccess,
   Identifier,
+  PropAccess,
   UnaryExpression,
 } from "../frontend/ast.ts";
 import { uuid } from "../utils.ts";
@@ -12,12 +14,14 @@ import type {
   BlockContext,
   CallContext,
   Context,
+  ElemAccessAssignmentContext,
   ElementAccessContext,
   ExpressionStatementContext,
   IdentifierAssignmentContext,
   ObjectLiteralContext,
   ParenthesizedExpresionContext,
   PrimitiveContext,
+  PropAccessAssignmentContext,
   PropAccessContext,
   UnaryExpressionContext,
 } from "./context.ts";
@@ -603,6 +607,82 @@ export function execIdentifierAssignment(
   }
 }
 
+export function execPropAccessAssignment(
+  ctx: PropAccessAssignmentContext,
+  state: State,
+) {
+  if (ctx.phase === "init") {
+    ctx.phase = "rhscomputed";
+    state.execStack.push(initCtx(ctx.node.right));
+    return;
+  }
+  if (ctx.phase === "rhscomputed") {
+    ctx.right = state.acc.val;
+    ctx.phase = "targetcomputed";
+    state.execStack.push(initCtx((ctx.node.left as PropAccess).target));
+    return;
+  }
+  if (ctx.phase === "targetcomputed") {
+    const targetVal = state.heap.get(state.acc.val);
+    if (targetVal.type !== "object") {
+      throw new Error(`Cannot set property of ${targetVal.type}`);
+    }
+    const { name } = (ctx.node.left as PropAccess).property;
+    targetVal.properties[name] = ctx.right!;
+    state.execStack.pop();
+    return;
+  }
+}
+
+export function execElemAccessAssignment(
+  ctx: ElemAccessAssignmentContext,
+  state: State,
+) {
+  if (ctx.phase === "init") {
+    ctx.phase = "rhscomputed";
+    state.execStack.push(initCtx(ctx.node.right));
+    return;
+  }
+  if (ctx.phase === "rhscomputed") {
+    ctx.right = state.acc.val;
+    ctx.phase = "targetcomputed";
+    state.execStack.push(initCtx((ctx.node.left as ElementAccess).target));
+    return;
+  }
+  if (ctx.phase === "targetcomputed") {
+    ctx.target = state.acc.val;
+    ctx.phase = "idxcomputed";
+    state.execStack.push(initCtx((ctx.node.left as ElementAccess).index));
+    return;
+  }
+  if (ctx.phase === "idxcomputed") {
+    const targetVal = state.heap.get(ctx.target!);
+    const indexVal = state.heap.get(state.acc.val);
+    if (targetVal.type === "array") {
+      if (indexVal.type !== "number") {
+        throw new Error(
+          `Array index must be a number, but got ${indexVal.type}`,
+        );
+      }
+      if (indexVal.value < 0 || indexVal.value >= targetVal.elements.length) {
+        throw new Error(`Array index out of bounds`);
+      }
+      targetVal.elements[indexVal.value] = ctx.right!;
+    } else if (targetVal.type === "object") {
+      if (!isPrimitive(indexVal)) {
+        throw new Error(
+          `Object key must be primitive, but got ${indexVal.type}`,
+        );
+      }
+      targetVal.properties[coerceStr(indexVal)] = ctx.right!;
+    } else {
+      throw new Error(`Cannot assign value to ${targetVal.type}`);
+    }
+    state.execStack.pop();
+    return;
+  }
+}
+
 export function exec(ctx: Context, state: State) {
   if (state.acc.isReturn && ctx.type !== "Call") {
     state.execStack.pop();
@@ -635,7 +715,9 @@ export function exec(ctx: Context, state: State) {
     case "IdentifierAssignment":
       return execIdentifierAssignment(ctx, state);
     case "PropAccessAssignment":
+      return execPropAccessAssignment(ctx, state);
     case "ElemAccessAssignment":
+      return execElemAccessAssignment(ctx, state);
     default:
       break;
   }

@@ -101,6 +101,8 @@ export interface PropAccessAssignmentContext extends ContextBase {
 export interface ElemAccessAssignmentContext extends ContextBase {
   type: "ElemAccessAssignment";
   node: AssignmentStatement;
+  right?: Pointer;
+  target?: Pointer;
   phase: "init" | "rhscomputed" | "targetcomputed" | "idxcomputed";
 }
 

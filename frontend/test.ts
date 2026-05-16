@@ -3,9 +3,14 @@ import { Parser } from "./parser.ts";
 import { Tokenizer, TokenManager } from "./tokenizer.ts";
 
 const program = `
-obj = {k:5};
-obj2 = obj;
-print(obj2 == obj);
+arr = [1,2,3, {
+foo: {
+  bar:[10,11,12]
+    }
+  }
+];
+arr[3].foo.bar[0] = 200;
+print(arr);
 `;
 
 const tokenizer = new Tokenizer(program);
