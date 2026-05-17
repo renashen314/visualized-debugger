@@ -6,10 +6,12 @@ import type {
   Call,
   ElementAccess,
   ExpressionStatement,
+  FunctionDeclaration,
   ObjectLiteral,
   ParenthesizedExpression,
   Primitive,
   PropAccess,
+  ReturnStatement,
   UnaryExpression,
 } from "../frontend/ast.ts";
 import type { Pointer } from "./memory.ts";
@@ -106,6 +108,17 @@ export interface ElemAccessAssignmentContext extends ContextBase {
   phase: "init" | "rhscomputed" | "targetcomputed" | "idxcomputed";
 }
 
+export interface FunctionDeclarationContext extends ContextBase {
+  type: "FunctionDeclaration";
+  node: FunctionDeclaration;
+}
+
+export interface ReturnStatementContext extends ContextBase {
+  type: "ReturnStatement";
+  node: ReturnStatement;
+  phase: "init" | "done";
+}
+
 export type Context =
   | BlockContext
   | PrimitiveContext
@@ -120,7 +133,9 @@ export type Context =
   | ElementAccessContext
   | IdentifierAssignmentContext
   | PropAccessAssignmentContext
-  | ElemAccessAssignmentContext;
+  | ElemAccessAssignmentContext
+  | FunctionDeclarationContext
+  | ReturnStatementContext;
 
 export interface Accumulator {
   val: Pointer;

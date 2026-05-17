@@ -17,12 +17,14 @@ import type {
   ElemAccessAssignmentContext,
   ElementAccessContext,
   ExpressionStatementContext,
+  FunctionDeclarationContext,
   IdentifierAssignmentContext,
   ObjectLiteralContext,
   ParenthesizedExpresionContext,
   PrimitiveContext,
   PropAccessAssignmentContext,
   PropAccessContext,
+  ReturnStatementContext,
   UnaryExpressionContext,
 } from "./context.ts";
 import {
@@ -75,10 +77,12 @@ export function initCtx(node: ASTNode): Context {
       return { type: "PropAccess", node, phase: "init" };
     case "ElementAccess":
       return { type: "ElementAccess", node, phase: "init" };
+    case "FunctionDeclaration":
+      return { type: "FunctionDeclaration", node };
+    case "ReturnStatement":
+      return { type: "ReturnStatement", node, phase: "init" };
     case "IfStatement":
     case "WhileLoop":
-    case "FunctionDeclaration":
-    case "ReturnStatement":
     case "AssignmentStatement":
     default: {
       throw new Error("TODO");
@@ -206,6 +210,7 @@ export function execCall(ctx: CallContext, state: State) {
       });
       state.callStack.push(fnValue.node.name, fnValue.node.body, newEnv);
       state.execStack.push(initCtx(fnValue.node.body));
+      ctx.phase = "done";
     } else {
       throw new Error(`Target is not a function: ${fnValue.type}`);
     }
@@ -683,6 +688,37 @@ export function execElemAccessAssignment(
   }
 }
 
+export function execFunctionDeclaration(
+  ctx: FunctionDeclarationContext,
+  state: State,
+) {
+  const fnptr = state.heap.set({
+    type: "function",
+    node: ctx.node,
+    parentEnv: state.callStack.peek().env,
+  });
+  state.callStack.peek().env.set(ctx.node.name, fnptr);
+  state.execStack.pop();
+}
+
+export function execReturnStatement(ctx: ReturnStatementContext, state: State) {
+  if (ctx.phase === "init") {
+    ctx.phase = "done";
+    if (ctx.node.expression) {
+      state.execStack.push(initCtx(ctx.node.expression));
+    } else {
+      state.acc.val = state.heap.set({ type: "null" });
+      state.execStack.pop();
+    }
+    return;
+  }
+  if (ctx.phase === "done") {
+    state.acc.isReturn = true;
+    state.execStack.pop();
+    return;
+  }
+}
+
 export function exec(ctx: Context, state: State) {
   if (state.acc.isReturn && ctx.type !== "Call") {
     state.execStack.pop();
@@ -718,6 +754,10 @@ export function exec(ctx: Context, state: State) {
       return execPropAccessAssignment(ctx, state);
     case "ElemAccessAssignment":
       return execElemAccessAssignment(ctx, state);
+    case "FunctionDeclaration":
+      return execFunctionDeclaration(ctx, state);
+    case "ReturnStatement":
+      return execReturnStatement(ctx, state);
     default:
       break;
   }

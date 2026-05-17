@@ -3,14 +3,16 @@ import { Parser } from "./parser.ts";
 import { Tokenizer, TokenManager } from "./tokenizer.ts";
 
 const program = `
-arr = [1,2,3, {
-foo: {
-  bar:[10,11,12]
-    }
+fn outer(init) {
+  fn get() {
+    return init;
   }
-];
-arr[3].foo.bar[0] = 200;
-print(arr);
+  return get;
+}
+o1 = outer(0);
+o2 = outer(10);
+print(o1());
+print(o2());
 `;
 
 const tokenizer = new Tokenizer(program);
