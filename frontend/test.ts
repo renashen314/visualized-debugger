@@ -3,16 +3,14 @@ import { Parser } from "./parser.ts";
 import { Tokenizer, TokenManager } from "./tokenizer.ts";
 
 const program = `
-fn outer(init) {
-  fn get() {
-    return init;
-  }
-  return get;
+count = 0;
+while (count<10) {
+  print(count);
+  count = count+1;
+  a = 200;
 }
-o1 = outer(0);
-o2 = outer(10);
-print(o1());
-print(o2());
+print(count);
+print(a);
 `;
 
 const tokenizer = new Tokenizer(program);

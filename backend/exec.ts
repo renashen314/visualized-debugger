@@ -26,6 +26,7 @@ import type {
   PropAccessContext,
   ReturnStatementContext,
   UnaryExpressionContext,
+  WhileloopContext,
 } from "./context.ts";
 import {
   coerceStr,
@@ -81,8 +82,9 @@ export function initCtx(node: ASTNode): Context {
       return { type: "FunctionDeclaration", node };
     case "ReturnStatement":
       return { type: "ReturnStatement", node, phase: "init" };
-    case "IfStatement":
     case "WhileLoop":
+      return { type: "Whileloop", node, phase: "init" };
+    case "IfStatement":
     case "AssignmentStatement":
     default: {
       throw new Error("TODO");
@@ -719,6 +721,23 @@ export function execReturnStatement(ctx: ReturnStatementContext, state: State) {
   }
 }
 
+export function execWhileloop(ctx: WhileloopContext, state: State) {
+  if (ctx.phase === "init") {
+    ctx.phase = "condcomputed";
+    state.execStack.push(initCtx(ctx.node.condition));
+    return;
+  }
+  if (ctx.phase === "condcomputed") {
+    if (!isTruthy(state.heap.get(state.acc.val))) {
+      state.execStack.pop();
+      return;
+    }
+    ctx.phase = "init";
+    state.execStack.push(initCtx(ctx.node.body));
+    return;
+  }
+}
+
 export function exec(ctx: Context, state: State) {
   if (state.acc.isReturn && ctx.type !== "Call") {
     state.execStack.pop();
@@ -758,6 +777,8 @@ export function exec(ctx: Context, state: State) {
       return execFunctionDeclaration(ctx, state);
     case "ReturnStatement":
       return execReturnStatement(ctx, state);
+    case "Whileloop":
+      return execWhileloop(ctx, state);
     default:
       break;
   }

@@ -13,6 +13,7 @@ import type {
   PropAccess,
   ReturnStatement,
   UnaryExpression,
+  WhileLoop,
 } from "../frontend/ast.ts";
 import type { Pointer } from "./memory.ts";
 
@@ -119,6 +120,12 @@ export interface ReturnStatementContext extends ContextBase {
   phase: "init" | "done";
 }
 
+export interface WhileloopContext extends ContextBase {
+  type: "Whileloop";
+  node: WhileLoop;
+  phase: "init" | "condcomputed";
+}
+
 export type Context =
   | BlockContext
   | PrimitiveContext
@@ -135,7 +142,8 @@ export type Context =
   | PropAccessAssignmentContext
   | ElemAccessAssignmentContext
   | FunctionDeclarationContext
-  | ReturnStatementContext;
+  | ReturnStatementContext
+  | WhileloopContext;
 
 export interface Accumulator {
   val: Pointer;
