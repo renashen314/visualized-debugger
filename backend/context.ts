@@ -7,6 +7,7 @@ import type {
   ElementAccess,
   ExpressionStatement,
   FunctionDeclaration,
+  IfStatement,
   ObjectLiteral,
   ParenthesizedExpression,
   Primitive,
@@ -126,6 +127,18 @@ export interface WhileloopContext extends ContextBase {
   phase: "init" | "condcomputed";
 }
 
+export interface IfStatememtContext extends ContextBase {
+  type: "IfStatement";
+  node: IfStatement;
+  phase: "init" | "condcomputed" | "done";
+}
+
+export interface ElseIfContext extends ContextBase {
+  type: "ElseIf";
+  node: IfStatement;
+  index: number;
+  phase: "init" | "condcomputed" | "done";
+}
 export type Context =
   | BlockContext
   | PrimitiveContext

@@ -3,14 +3,15 @@ import { Parser } from "./parser.ts";
 import { Tokenizer, TokenManager } from "./tokenizer.ts";
 
 const program = `
-count = 0;
-while (count<10) {
-  print(count);
-  count = count+1;
-  a = 200;
-}
-print(count);
-print(a);
+if(false) {
+    print("true");
+  } else if(false) {
+    print("elseif1");
+  } else if (true) {
+    print("elseif2");
+  } else {
+      print("else");
+    }
 `;
 
 const tokenizer = new Tokenizer(program);

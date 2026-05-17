@@ -3,6 +3,7 @@ import type {
   ASTNode,
   ElementAccess,
   Identifier,
+  IfStatement,
   PropAccess,
   UnaryExpression,
 } from "../frontend/ast.ts";
@@ -16,9 +17,11 @@ import type {
   Context,
   ElemAccessAssignmentContext,
   ElementAccessContext,
+  ElseIfContext,
   ExpressionStatementContext,
   FunctionDeclarationContext,
   IdentifierAssignmentContext,
+  IfStatememtContext,
   ObjectLiteralContext,
   ParenthesizedExpresionContext,
   PrimitiveContext,
@@ -39,6 +42,13 @@ import {
   type Heap,
 } from "./memory.ts";
 
+export function initElseIfContext(
+  node: IfStatement,
+  index: number,
+): ElseIfContext {
+  return { type: "ElseIf", node, index, phase: "init" };
+}
+
 export function initCtx(node: ASTNode): Context {
   switch (node.type) {
     case "Block":
@@ -54,6 +64,14 @@ export function initCtx(node: ASTNode): Context {
         return { type: "ElemAccessAssignment", node, phase: "init" };
       }
       throw new Error(`Unexpected assignment targer: ${node.left.type}`);
+    case "FunctionDeclaration":
+      return { type: "FunctionDeclaration", node };
+    case "ReturnStatement":
+      return { type: "ReturnStatement", node, phase: "init" };
+    case "WhileLoop":
+      return { type: "Whileloop", node, phase: "init" };
+    case "IfStatement":
+      return { type: "IfStatement", node, phase: "init" };
     case "NullLiteral":
     case "BooleanLiteral":
     case "StringLiteral":
@@ -78,16 +96,8 @@ export function initCtx(node: ASTNode): Context {
       return { type: "PropAccess", node, phase: "init" };
     case "ElementAccess":
       return { type: "ElementAccess", node, phase: "init" };
-    case "FunctionDeclaration":
-      return { type: "FunctionDeclaration", node };
-    case "ReturnStatement":
-      return { type: "ReturnStatement", node, phase: "init" };
-    case "WhileLoop":
-      return { type: "Whileloop", node, phase: "init" };
-    case "IfStatement":
-    case "AssignmentStatement":
     default: {
-      throw new Error("TODO");
+      throw new Error("Context not found.");
     }
   }
 }
@@ -738,6 +748,58 @@ export function execWhileloop(ctx: WhileloopContext, state: State) {
   }
 }
 
+export function execIfStatement(ctx: IfStatememtContext, state: State) {
+  if (ctx.phase === "init") {
+    ctx.phase = "condcomputed";
+    state.execStack.push(initCtx(ctx.node.condition));
+    return;
+  }
+  if (ctx.phase === "condcomputed") {
+    if (isTruthy(state.heap.get(state.acc.val))) {
+      state.execStack.push(initCtx(ctx.node.body));
+      ctx.phase = "done";
+    } else {
+      state.execStack.pop();
+      if (ctx.node.elseIfs!.length > 0) {
+        state.execStack.push(initElseIfContext(ctx.node, 0));
+      } else if (ctx.node.else) {
+        state.execStack.push(initCtx(ctx.node.else));
+      }
+    }
+    return;
+  }
+  if (ctx.phase === "done") {
+    state.execStack.pop();
+    return;
+  }
+}
+
+export function execElseIf(ctx: ElseIfContext, state: State) {
+  if (ctx.phase === "init") {
+    ctx.phase = "condcomputed";
+    state.execStack.push(initCtx(ctx.node.elseIfs![ctx.index].condition));
+    return;
+  }
+  if (ctx.phase === "condcomputed") {
+    if (isTruthy(state.heap.get(state.acc.val))) {
+      state.execStack.push(initCtx(ctx.node.elseIfs![ctx.index].body));
+      ctx.phase = "done";
+    } else {
+      state.execStack.pop();
+      if (ctx.index + 1 < ctx.node.elseIfs!.length) {
+        state.execStack.push(initElseIfContext(ctx.node, ctx.index + 1));
+      } else if (ctx.node.else) {
+        state.execStack.push(initCtx(ctx.node.else));
+      }
+    }
+    return;
+  }
+  if (ctx.phase === "done") {
+    state.execStack.pop();
+    return;
+  }
+}
+
 export function exec(ctx: Context, state: State) {
   if (state.acc.isReturn && ctx.type !== "Call") {
     state.execStack.pop();
@@ -779,6 +841,10 @@ export function exec(ctx: Context, state: State) {
       return execReturnStatement(ctx, state);
     case "Whileloop":
       return execWhileloop(ctx, state);
+    case "IfStatement":
+      return execIfStatement(ctx, state);
+    case "ElseIf":
+      return execElseIf(ctx, state);
     default:
       break;
   }
