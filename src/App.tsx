@@ -146,6 +146,19 @@ function App() {
               }
             }
           }}
+          onStop={
+            codeState.type === "executing"
+              ? () => {
+                  executorRef.current = null;
+                  setCodeState({
+                    type: "idle",
+                    printed: codeState.printed,
+                    code: codeState.code,
+                    breakpoints: codeState.breakpoints,
+                  });
+                }
+              : undefined
+          }
         />
       </div>
 
