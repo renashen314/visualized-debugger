@@ -14,7 +14,7 @@ export type ObjectValue = {
   properties: Record<string, Pointer>;
 };
 
-type FunctionValue =
+export type FunctionValue =
   | { type: "builtinfunction"; impl: (args: Pointer[]) => Pointer }
   | {
       type: "function";
@@ -95,13 +95,14 @@ export function isPrimitiveEqual(
 
 export class Heap {
   private readonly storage: Record<Pointer, RuntimeValue> = {};
+
   set(value: RuntimeValue) {
     const pointer = uuid();
     this.storage[pointer] = value;
     return pointer;
   }
 
-  get(pointer: Pointer) {
+  get(pointer: Pointer): RuntimeValue {
     const value = this.storage[pointer];
     if (value === undefined) {
       throw new Error(`Segmentation fault: invalid pointer ${pointer}`);

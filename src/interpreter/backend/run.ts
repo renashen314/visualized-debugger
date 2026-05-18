@@ -3,6 +3,12 @@ import type { ASTNodeId, Block } from "../frontend/ast.ts";
 import { exec, initCtx } from "./exec.ts";
 import type { Accumulator, Context } from "./context.ts";
 import { printAny } from "./builtin.ts";
+import {
+  heapSnapshot,
+  stackDiagnostic,
+  type DiagnosticFrame,
+  type HeapSnapshot,
+} from "./diagnostics.ts";
 
 interface Config {
   program: Block;
@@ -14,6 +20,8 @@ interface Config {
 interface ExecutionState {
   printed: string[];
   finished: boolean;
+  stack: DiagnosticFrame[];
+  heap: HeapSnapshot;
 }
 export class Executor {
   private readonly heap: Heap;
@@ -63,6 +71,8 @@ export class Executor {
     const printed = [...this.printed];
     this.printed.length = 0;
     return {
+      heap: heapSnapshot(this.heap),
+      stack: stackDiagnostic(this.callStack),
       printed,
       finished: this.execStack.length === 0,
     };

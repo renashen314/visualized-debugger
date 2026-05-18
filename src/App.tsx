@@ -6,6 +6,10 @@ import { Tokenizer, TokenManager } from "./interpreter/frontend/tokenizer";
 import { Parser } from "./interpreter/frontend/parser";
 import { Executor, executor } from "./interpreter/backend/run";
 import type { ASTNode, ASTNodeId, Block } from "./interpreter/frontend/ast";
+import type {
+  DiagnosticFrame,
+  HeapSnapshot,
+} from "./interpreter/backend/diagnostics";
 
 function getNodeBreakpoints(
   breakpoints: number[],
@@ -56,6 +60,8 @@ interface Idle extends BaseState {
 interface Executing extends BaseState {
   type: "executing";
   program: Block;
+  heap: HeapSnapshot;
+  stack: DiagnosticFrame[];
 }
 
 function App() {
@@ -119,6 +125,8 @@ function App() {
                   breakpoints: codeState.breakpoints,
                   printed: [...codeState.printed, ...next.printed],
                   program: program,
+                  heap: next.heap,
+                  stack: next.stack,
                 });
               }
             }
@@ -139,6 +147,8 @@ function App() {
                   code: codeState.code,
                   breakpoints: codeState.breakpoints,
                   program: codeState.program,
+                  heap: next.heap,
+                  stack: next.stack,
                 });
               }
             }
