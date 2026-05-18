@@ -86,22 +86,57 @@ function App() {
                 new Tokenizer(codeState.code).tokenize(),
               );
               const parser = new Parser(tokens);
-              const ast = parser.parse();
-              const exec = executor(ast);
+              const program = parser.parse();
+              const exec = executor(program);
 
               executorRef.current = exec;
 
               const breakpointedNodes = getNodeBreakpoints(
                 codeState.breakpoints,
-                ast,
+                program,
               );
               for (const id of breakpointedNodes) {
                 exec.addBreakpoint(id);
               }
 
-              const printed = exec.advance();
-
-              setCodeState((state) => ({ ...state, printed }));
+              const next = exec.advance();
+              if (next.finished) {
+                setCodeState({
+                  type: "idle",
+                  code: codeState.code,
+                  breakpoints: codeState.breakpoints,
+                  printed: [...codeState.printed, ...next.printed],
+                });
+                executorRef.current = null;
+              } else {
+                setCodeState({
+                  type: "executing",
+                  code: codeState.code,
+                  breakpoints: codeState.breakpoints,
+                  printed: [...codeState.printed, ...next.printed],
+                  program: program,
+                });
+              }
+            }
+            if (codeState.type === "executing") {
+              const next = executorRef.current!.advance();
+              if (next.finished) {
+                executorRef.current = null;
+                setCodeState({
+                  type: "idle",
+                  printed: [...codeState.printed, ...next.printed],
+                  code: codeState.code,
+                  breakpoints: codeState.breakpoints,
+                });
+              } else {
+                setCodeState({
+                  type: "executing",
+                  printed: [...codeState.printed, ...next.printed],
+                  code: codeState.code,
+                  breakpoints: codeState.breakpoints,
+                  program: codeState.program,
+                });
+              }
             }
           }}
         />

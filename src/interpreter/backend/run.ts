@@ -11,6 +11,10 @@ interface Config {
   printed: string[];
 }
 
+interface ExecutionState {
+  printed: string[];
+  finished: boolean;
+}
 export class Executor {
   private readonly heap: Heap;
   private readonly callStack: CallStack;
@@ -55,10 +59,13 @@ export class Executor {
     return this.state();
   }
 
-  private state(): string[] {
+  private state(): ExecutionState {
     const printed = [...this.printed];
     this.printed.length = 0;
-    return printed;
+    return {
+      printed,
+      finished: this.execStack.length === 0,
+    };
   }
 }
 
