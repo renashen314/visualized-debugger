@@ -10,6 +10,7 @@ import type {
   DiagnosticFrame,
   HeapSnapshot,
 } from "./interpreter/backend/diagnostics";
+import { Stack } from "./Stack";
 
 function getNodeBreakpoints(
   breakpoints: number[],
@@ -174,6 +175,14 @@ function App() {
         onClear={() => {
           setCodeState((state) => ({ ...state, printed: [] }));
         }}
+      />
+      <Stack
+        stack={
+          codeState.type === "idle"
+            ? []
+            : codeState.stack.map((frame) => ({ ...frame, expanded: {} }))
+        }
+        heap={codeState.type === "idle" ? {} : codeState.heap}
       />
     </div>
   );

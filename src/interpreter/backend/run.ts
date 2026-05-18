@@ -96,9 +96,9 @@ export function executor(program: Block): Executor {
     },
   });
 
-  const globalEnv = new LexicalEnvironment(builtinEnv);
-  globalEnv.set("print", printPointer);
+  builtinEnv.set("print", printPointer);
 
+  const globalEnv = new LexicalEnvironment(builtinEnv);
   const callStack = new CallStack();
 
   callStack.push("", program, globalEnv);
