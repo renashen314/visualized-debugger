@@ -76,12 +76,9 @@ function App() {
             setCodeState((state) => ({ ...state, code }));
           }}
           onBreakpoint={(bps) => {
-            executorRef.current?.clearBreakpoints();
             if (executorRef.current && codeState.type === "executing") {
-              for (const id of getNodeBreakpoints(
-                codeState.breakpoints,
-                codeState.program,
-              )) {
+              executorRef.current.clearBreakpoints();
+              for (const id of getNodeBreakpoints(bps, codeState.program)) {
                 executorRef.current.addBreakpoint(id);
               }
             }
@@ -103,10 +100,10 @@ function App() {
                 codeState.breakpoints,
                 program,
               )) {
-                executor(program).addBreakpoint(id);
+                executorRef.current.addBreakpoint(id);
               }
 
-              const next = executor(program).advance();
+              const next = executorRef.current.advance();
               if (next.finished) {
                 setCodeState({
                   type: "idle",
