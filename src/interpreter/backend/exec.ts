@@ -7,7 +7,7 @@ import type {
   PropAccess,
   UnaryExpression,
 } from "../frontend/ast.ts";
-import { uuid } from "../utils.ts";
+import { uuid } from "../../../utils.ts";
 import type {
   Accumulator,
   ArrayLiteralContext,

@@ -40,9 +40,10 @@ class Executor {
   advance() {
     while (this.execStack.length > 0) {
       const curr = this.execStack[this.execStack.length - 1];
+      this.callStack.peek().curr = curr.node;
       if (this.breakpoints.has(curr.node.id) && !curr.isBreakpointed) {
         curr.isBreakpointed = true;
-        return this.state;
+        return this.state();
       }
       exec(curr, {
         heap: this.heap,

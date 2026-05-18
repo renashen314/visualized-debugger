@@ -156,7 +156,9 @@ export type Context =
   | ElemAccessAssignmentContext
   | FunctionDeclarationContext
   | ReturnStatementContext
-  | WhileloopContext;
+  | WhileloopContext
+  | IfStatememtContext
+  | ElseIfContext;
 
 export interface Accumulator {
   val: Pointer;

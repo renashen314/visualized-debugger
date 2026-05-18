@@ -1,4 +1,4 @@
-import { uuid } from "../utils.ts";
+import { uuid } from "../../../utils.ts";
 import type { ASTNode, FunctionDeclaration } from "../frontend/ast.ts";
 
 export type Pointer = string;

@@ -20,8 +20,8 @@ import type {
   ReturnStatement,
   Statement,
   WhileLoop,
-} from "./ast";
-import { uuid } from "../utils.ts";
+} from "./ast.ts";
+import { uuid } from "../../../utils.ts";
 
 function isPrimitiveLookahead(token: Token): boolean {
   return (
