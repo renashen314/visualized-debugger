@@ -76,6 +76,15 @@ function App() {
             setCodeState((state) => ({ ...state, code }));
           }}
           onBreakpoint={(bps) => {
+            executorRef.current?.clearBreakpoints();
+            if (executorRef.current && codeState.type === "executing") {
+              for (const id of getNodeBreakpoints(
+                codeState.breakpoints,
+                codeState.program,
+              )) {
+                executorRef.current.addBreakpoint(id);
+              }
+            }
             setCodeState((state) => ({ ...state, breakpoints: bps }));
           }}
         />
@@ -87,19 +96,17 @@ function App() {
               );
               const parser = new Parser(tokens);
               const program = parser.parse();
-              const exec = executor(program);
 
-              executorRef.current = exec;
+              executorRef.current = executor(program);
 
-              const breakpointedNodes = getNodeBreakpoints(
+              for (const id of getNodeBreakpoints(
                 codeState.breakpoints,
                 program,
-              );
-              for (const id of breakpointedNodes) {
-                exec.addBreakpoint(id);
+              )) {
+                executor(program).addBreakpoint(id);
               }
 
-              const next = exec.advance();
+              const next = executor(program).advance();
               if (next.finished) {
                 setCodeState({
                   type: "idle",
