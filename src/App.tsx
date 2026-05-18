@@ -1,19 +1,69 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Code } from "./Code";
 import { Output } from "./Output";
 import { Controls } from "./Controls";
 import { Tokenizer, TokenManager } from "./interpreter/frontend/tokenizer";
 import { Parser } from "./interpreter/frontend/parser";
-import { executor } from "./interpreter/backend/run";
+import { Executor, executor } from "./interpreter/backend/run";
+import type { ASTNode, ASTNodeId, Block } from "./interpreter/frontend/ast";
+
+function getNodeBreakpoints(
+  breakpoints: number[],
+  program: Block,
+): ASTNodeId[] {
+  const remaining = new Set(breakpoints);
+  const nodes = new Set<ASTNodeId>();
+
+  const walk = (node: ASTNode) => {
+    switch (node.type) {
+      case "Block":
+        for (const stmt of node.statements) {
+          if (remaining.has(stmt.loc.start.line)) {
+            nodes.add(stmt.id);
+            remaining.delete(stmt.loc.start.line);
+          }
+          walk(stmt);
+        }
+        break;
+      case "IfStatement":
+        walk(node.body);
+        for (const elseif of node.elseIfs) {
+          walk(elseif.body);
+        }
+        if (node.else) {
+          walk(node.else);
+        }
+        break;
+      case "WhileLoop":
+      case "FunctionDeclaration":
+        walk(node.body);
+        break;
+    }
+  };
+
+  walk(program);
+  return Array.from(nodes);
+}
 
 interface BaseState {
   code: string;
+  breakpoints: number[];
   printed: string[];
+}
+interface Idle extends BaseState {
+  type: "idle";
+}
+interface Executing extends BaseState {
+  type: "executing";
+  program: Block;
 }
 
 function App() {
-  const [codeState, setCodeState] = useState<BaseState>({
+  const executorRef = useRef<Executor>(null);
+  const [codeState, setCodeState] = useState<Idle | Executing>({
+    type: "idle",
     code: "\n\n\n",
+    breakpoints: [],
     printed: [],
   });
 
@@ -25,20 +75,34 @@ function App() {
           onChange={(code) => {
             setCodeState((state) => ({ ...state, code }));
           }}
+          onBreakpoint={(bps) => {
+            setCodeState((state) => ({ ...state, breakpoints: bps }));
+          }}
         />
         <Controls
           onRun={() => {
-            const tokens = new TokenManager(
-              new Tokenizer(codeState.code).tokenize(),
-            );
-            const parser = new Parser(tokens);
-            const ast = parser.parse();
+            if (codeState.type === "idle") {
+              const tokens = new TokenManager(
+                new Tokenizer(codeState.code).tokenize(),
+              );
+              const parser = new Parser(tokens);
+              const ast = parser.parse();
+              const exec = executor(ast);
 
-            const exec = executor(ast);
+              executorRef.current = exec;
 
-            const printed = exec.advance();
+              const breakpointedNodes = getNodeBreakpoints(
+                codeState.breakpoints,
+                ast,
+              );
+              for (const id of breakpointedNodes) {
+                exec.addBreakpoint(id);
+              }
 
-            setCodeState((state) => ({ ...state, printed }));
+              const printed = exec.advance();
+
+              setCodeState((state) => ({ ...state, printed }));
+            }
           }}
         />
       </div>

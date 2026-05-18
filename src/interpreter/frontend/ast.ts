@@ -23,9 +23,9 @@ export type Statement =
 export interface IfStatement extends BaseNode {
   type: "IfStatement";
   condition: Expression;
-  elseIfs?: ElseIf[];
-  else?: Block;
   body: Block;
+  elseIfs: ElseIf[];
+  else?: Block;
 }
 
 export interface ElseIf extends BaseNode {

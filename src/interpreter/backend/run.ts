@@ -11,7 +11,7 @@ interface Config {
   printed: string[];
 }
 
-class Executor {
+export class Executor {
   private readonly heap: Heap;
   private readonly callStack: CallStack;
   private readonly execStack: Context[];
