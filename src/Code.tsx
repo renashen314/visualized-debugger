@@ -1,20 +1,45 @@
-import CodeMirror from "@uiw/react-codemirror";
+import CodeMirror, { type ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import {
   breakpointEffect,
   breakpointGutter,
   breakpointState,
 } from "./codemirror/breakpoints";
+import {
+  highlightEffect,
+  highlightField,
+  type Range,
+} from "./codemirror/highlights";
+import { useEffect, useRef } from "react";
 
 interface CodeProps {
   code: string;
+  highlight?: Range;
   readonly: boolean;
   onChange: (code: string) => void;
   onBreakpoint: (bps: number[]) => void;
 }
 
 export const Code = (props: CodeProps) => {
+  const editorRef = useRef<ReactCodeMirrorRef>(null);
+  useEffect(() => {
+    if (props.highlight) {
+      editorRef.current?.view?.dispatch({
+        effects: highlightEffect.of({
+          type: "set",
+          ...props.highlight,
+        }),
+      });
+    } else {
+      editorRef.current?.view?.dispatch({
+        effects: highlightEffect.of({
+          type: "clear",
+        }),
+      });
+    }
+  }, [props.highlight]);
   return (
     <CodeMirror
+      ref={editorRef}
       style={{ minWidth: "400px", textAlign: "left" }}
       readOnly={props.readonly}
       value={props.code}
@@ -33,8 +58,13 @@ export const Code = (props: CodeProps) => {
           props.onBreakpoint(bps);
         }
       }}
+      basicSetup={{
+        highlightActiveLineGutter: false,
+        highlightActiveLine: false,
+        foldGutter: false,
+      }}
       onChange={props.onChange}
-      extensions={[breakpointGutter]}
+      extensions={[breakpointGutter, highlightField]}
     />
   );
 };

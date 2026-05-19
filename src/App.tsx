@@ -62,6 +62,7 @@ interface Idle extends BaseState {
 interface Executing extends BaseState {
   type: "executing";
   program: Block;
+  curr: number;
   heap: HeapSnapshot;
   stack: DiagnosticFrame[];
   expanded: Record<FrameId, Record<Pointer, boolean>>;
@@ -80,6 +81,14 @@ function App() {
     <div style={{ display: "flex" }}>
       <div>
         <Code
+          highlight={
+            codeState.type === "executing"
+              ? {
+                  from: codeState.stack[codeState.curr].loc.start.i,
+                  to: codeState.stack[codeState.curr].loc.end.i,
+                }
+              : undefined
+          }
           code={codeState.code}
           readonly={codeState.type === "executing"}
           onChange={(code) => {
@@ -129,6 +138,7 @@ function App() {
                   breakpoints: codeState.breakpoints,
                   printed: [...codeState.printed, ...next.printed],
                   program: program,
+                  curr: next.stack.length - 1,
                   heap: next.heap,
                   stack: next.stack,
                   expanded: {},
@@ -152,6 +162,7 @@ function App() {
                   code: codeState.code,
                   breakpoints: codeState.breakpoints,
                   program: codeState.program,
+                  curr: next.stack.length - 1,
                   heap: next.heap,
                   stack: next.stack,
                   expanded: codeState.expanded,
@@ -182,6 +193,7 @@ function App() {
         }}
       />
       <Stack
+        heap={codeState.type === "idle" ? {} : codeState.heap}
         stack={
           codeState.type === "idle"
             ? []
@@ -190,6 +202,7 @@ function App() {
                 expanded: codeState.expanded?.[frame.id] ?? [],
               }))
         }
+        curr={codeState.type === "idle" ? -1 : codeState.curr}
         onExpand={(id, ptr) => {
           setCodeState((state) => {
             if (state.type === "executing") {
@@ -208,7 +221,14 @@ function App() {
             return state;
           });
         }}
-        heap={codeState.type === "idle" ? {} : codeState.heap}
+        onCurr={(curr) => {
+          setCodeState((state) => {
+            if (codeState.type === "executing") {
+              return { ...state, curr };
+            }
+            return state;
+          });
+        }}
       />
     </div>
   );

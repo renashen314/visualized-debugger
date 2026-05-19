@@ -2,7 +2,7 @@ import { StateEffect, StateField } from "@codemirror/state";
 import { Decoration, EditorView } from "@codemirror/view";
 
 const highlightMark = Decoration.mark({
-  attributes: { style: "background-color: #58a6ff33; border-radius: 2px;" },
+  attributes: { style: "background-color: #1a48ff34; border-radius: 2px;" },
 });
 
 export interface Range {

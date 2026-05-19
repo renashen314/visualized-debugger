@@ -81,7 +81,9 @@ interface RenderedFrame {
 export interface StackProps {
   stack: InputFrame[];
   heap: HeapSnapshot;
+  curr: number;
   onExpand: (id: FrameId, ptr: Pointer) => void;
+  onCurr: (curr: number) => void;
 }
 export const Stack = (props: StackProps) => {
   const frames: RenderedFrame[] = props.stack.map((frame) => ({
@@ -94,7 +96,14 @@ export const Stack = (props: StackProps) => {
     <div style={{ marginLeft: 50 }}>
       <h1 style={{ marginBottom: 20 }}>Stack</h1>
       {frames.map((frame, i) => (
-        <div key={i} style={{ border: "2px solid grey", padding: 20 }}>
+        <div
+          key={i}
+          style={{
+            border: props.curr === i ? "2px solid red" : "2px solid grey",
+            padding: 20,
+          }}
+          onClick={() => props.onCurr(i)}
+        >
           <h4>{frame.name}</h4>
           {frame.entries.map((entry, j) => (
             <div
