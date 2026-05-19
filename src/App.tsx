@@ -10,7 +10,8 @@ import type {
   DiagnosticFrame,
   HeapSnapshot,
 } from "./interpreter/backend/diagnostics";
-import { Stack } from "./Stack";
+import { Stack, type FrameId } from "./Stack";
+import type { Pointer } from "./interpreter/backend/memory";
 
 function getNodeBreakpoints(
   breakpoints: number[],
@@ -63,6 +64,7 @@ interface Executing extends BaseState {
   program: Block;
   heap: HeapSnapshot;
   stack: DiagnosticFrame[];
+  expanded: Record<FrameId, Record<Pointer, boolean>>;
 }
 
 function App() {
@@ -128,6 +130,7 @@ function App() {
                   program: program,
                   heap: next.heap,
                   stack: next.stack,
+                  expanded: {},
                 });
               }
             }
@@ -150,6 +153,7 @@ function App() {
                   program: codeState.program,
                   heap: next.heap,
                   stack: next.stack,
+                  expanded: codeState.expanded,
                 });
               }
             }
@@ -180,8 +184,29 @@ function App() {
         stack={
           codeState.type === "idle"
             ? []
-            : codeState.stack.map((frame) => ({ ...frame, expanded: {} }))
+            : codeState.stack.map((frame) => ({
+                ...frame,
+                expanded: codeState.expanded?.[frame.id] ?? [],
+              }))
         }
+        onExpand={(id, ptr) => {
+          setCodeState((state) => {
+            if (state.type === "executing") {
+              const expanded = { ...state.expanded };
+              if (!expanded[id]) {
+                expanded[id] = {};
+              } else {
+                expanded[id] = { ...expanded[id] };
+              }
+              expanded[id][ptr] = !expanded[id][ptr];
+              return {
+                ...state,
+                expanded,
+              };
+            }
+            return state;
+          });
+        }}
         heap={codeState.type === "idle" ? {} : codeState.heap}
       />
     </div>

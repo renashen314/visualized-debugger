@@ -63,7 +63,7 @@ function flatten(
   return entries;
 }
 
-type FrameId = string;
+export type FrameId = string;
 
 export interface InputFrame {
   id: FrameId;
@@ -81,6 +81,7 @@ interface RenderedFrame {
 export interface StackProps {
   stack: InputFrame[];
   heap: HeapSnapshot;
+  onExpand: (id: FrameId, ptr: Pointer) => void;
 }
 export const Stack = (props: StackProps) => {
   const frames: RenderedFrame[] = props.stack.map((frame) => ({
@@ -96,7 +97,15 @@ export const Stack = (props: StackProps) => {
         <div key={i} style={{ border: "2px solid grey", padding: 20 }}>
           <h4>{frame.name}</h4>
           {frame.entries.map((entry, j) => (
-            <div key={`${i} ${j}`}>
+            <div
+              key={`${i} ${j}`}
+              style={{ paddingLeft: entry.depth * 16, textAlign: "left" }}
+              onClick={() => {
+                if (entry.expandable) {
+                  props.onExpand(frame.id, entry.ptr);
+                }
+              }}
+            >
               <span>
                 {entry.name}: {entry.value}
               </span>
