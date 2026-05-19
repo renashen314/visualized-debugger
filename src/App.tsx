@@ -81,6 +81,7 @@ function App() {
       <div>
         <Code
           code={codeState.code}
+          readonly={codeState.type === "executing"}
           onChange={(code) => {
             setCodeState((state) => ({ ...state, code }));
           }}

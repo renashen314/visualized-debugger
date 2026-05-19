@@ -7,6 +7,7 @@ import {
 
 interface CodeProps {
   code: string;
+  readonly: boolean;
   onChange: (code: string) => void;
   onBreakpoint: (bps: number[]) => void;
 }
@@ -15,6 +16,7 @@ export const Code = (props: CodeProps) => {
   return (
     <CodeMirror
       style={{ minWidth: "400px", textAlign: "left" }}
+      readOnly={props.readonly}
       value={props.code}
       onUpdate={(update) => {
         const effectTriggered = update.transactions.some((tr) =>
