@@ -93,13 +93,13 @@ export const Stack = (props: StackProps) => {
   }));
 
   return (
-    <div style={{ marginLeft: 50 }}>
-      <h1 style={{ marginBottom: 20 }}>Stack</h1>
+    <div className="stack-container">
+      <h1>Stack</h1>
       {frames.map((frame, i) => (
         <div
           key={i}
           style={{
-            border: props.curr === i ? "2px solid red" : "2px solid grey",
+            border: props.curr === i ? "2px solid purple" : "2px solid grey",
             padding: 20,
           }}
           onClick={() => props.onCurr(i)}
@@ -108,14 +108,14 @@ export const Stack = (props: StackProps) => {
           {frame.entries.map((entry, j) => (
             <div
               key={`${i} ${j}`}
-              style={{ paddingLeft: entry.depth * 16, textAlign: "left" }}
+              className="entry-line"
               onClick={() => {
                 if (entry.expandable) {
                   props.onExpand(frame.id, entry.ptr);
                 }
               }}
             >
-              <span>
+              <span className="name">
                 {entry.name}: {entry.value}
               </span>
             </div>

@@ -40,7 +40,7 @@ export const Code = (props: CodeProps) => {
   return (
     <CodeMirror
       ref={editorRef}
-      style={{ minWidth: "400px", textAlign: "left" }}
+      theme="dark"
       readOnly={props.readonly}
       value={props.code}
       onUpdate={(update) => {

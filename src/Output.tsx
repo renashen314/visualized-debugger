@@ -5,13 +5,17 @@ interface OutputProps {
 
 export const Output = (props: OutputProps) => {
   return (
-    <div>
-      <h1>Output</h1>
-      <button onClick={props.onClear} style={{ marginBottom: 20 }}>
-        Clear
-      </button>
+    <div className="output-container">
+      <div className="output-header">
+        <h1>Output</h1>
+        <button onClick={props.onClear} className="clear-button">
+          Clear
+        </button>
+      </div>
       {props.printed.map((line, i) => (
-        <pre key={i}>{line}</pre>
+        <pre key={i} className="output-line">
+          {line}
+        </pre>
       ))}
     </div>
   );

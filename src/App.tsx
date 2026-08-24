@@ -78,8 +78,8 @@ function App() {
   });
 
   return (
-    <div style={{ display: "flex" }}>
-      <div>
+    <div className="app-container">
+      <div className="left-pane">
         <Code
           highlight={
             codeState.type === "executing"
@@ -184,14 +184,15 @@ function App() {
               : undefined
           }
         />
+        <div className="out-pane">
+          <Output
+            printed={codeState.printed}
+            onClear={() => {
+              setCodeState((state) => ({ ...state, printed: [] }));
+            }}
+          />
+        </div>
       </div>
-
-      <Output
-        printed={codeState.printed}
-        onClear={() => {
-          setCodeState((state) => ({ ...state, printed: [] }));
-        }}
-      />
       <Stack
         heap={codeState.type === "idle" ? {} : codeState.heap}
         stack={

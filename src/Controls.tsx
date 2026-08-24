@@ -4,8 +4,10 @@ interface ControlProps {
 }
 export const Controls = (props: ControlProps) => {
   return (
-    <div style={{ display: "flex" }}>
-      <button onClick={props.onRun}>Run</button>
+    <div className="controls-pane">
+      <button onClick={props.onRun} className="primary">
+        Run
+      </button>
       <button onClick={props.onStop} disabled={!props.onStop}>
         Stop
       </button>
